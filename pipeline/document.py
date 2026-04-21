@@ -65,11 +65,20 @@ async def process_document(
         file_path=document.file_path,
         file_type=document.file_type,
     )
+    total_pages = len(all_images)
+
+    # --- Extract doc_type from filename ---
+    # Pattern: T232064267_263302157_U62400.tiff -> U62400 is the 3rd part
+    filename_doc_type = None
+    parts = document.file_path.stem.split("_")
+    if len(parts) >= 3:
+        filename_doc_type = parts[2]
+
     page_indices = sample_pages(
-        total_pages=len(all_images), max_pages=config.max_pages
+        total_pages=total_pages, max_pages=config.max_pages
     )
     selected_images = [all_images[i] for i in page_indices]
-    log.info("pages_selected", total=len(all_images), selected=page_indices)
+    log.info("pages_selected", total=total_pages, selected=page_indices)
 
     # --- OpenCV quality assessment (local, before Azure DI) ---
     numpy_images = images_to_numpy(selected_images)
