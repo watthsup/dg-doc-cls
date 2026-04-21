@@ -122,6 +122,10 @@ class ClassificationResult(BaseModel):
 
     primary_class: PrimaryClass
     subcategory: Subcategory
+    hospital_name: str | None = Field(
+        default=None,
+        description="Extracted hospital name (only for medical documents)",
+    )
 
 
 class SignalScores(BaseModel):

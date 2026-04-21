@@ -91,6 +91,8 @@ def main(
         click.echo(f"Document ID: {result.document_id}")
         click.echo(f"Primary:     {result.classification.primary_class.value}")
         click.echo(f"Subcategory: {result.classification.subcategory.value}")
+        if result.classification.hospital_name:
+            click.echo(f"Hospital:    {result.classification.hospital_name}")
         click.echo(f"Confidence:  {result.confidence:.3f}")
         
         click.echo(f"\nSignal Scores:")

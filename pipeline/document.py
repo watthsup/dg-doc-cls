@@ -148,6 +148,7 @@ async def process_document(
         classification=ClassificationResult(
             primary_class=llm_output.primary_class,
             subcategory=llm_output.subcategory,
+            hospital_name=llm_output.hospital_name,
         ),
         confidence=confidence,
         signals=signals,
