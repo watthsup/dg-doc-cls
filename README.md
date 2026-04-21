@@ -48,9 +48,22 @@ cp .env.example .env
 
 ### Run
 
+#### Batch Processing (Directory)
+Process all documents in a folder and export results to JSONL/CSV:
 ```bash
-# Classify all documents in a folder
-python scripts/run_batch.py --input-dir ./documents --output-dir ./output
+python scripts/run_batch.py --input-dir ./documents --output-dir ./results
+```
+
+#### Single Document
+Process a single file and see detailed results in the console:
+```bash
+python scripts/run_single.py path/to/document.pdf
+```
+
+To get the result as raw JSON (for piping):
+```bash
+python scripts/run_single.py path/to/document.pdf --json
+```
 
 # With options
 python scripts/run_batch.py \

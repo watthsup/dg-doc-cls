@@ -144,7 +144,7 @@ def analyze_document(
 
     poller = client.begin_analyze_document(
         model_id=model_id,
-        analyze_request=file_bytes,
+        body=file_bytes,
         content_type="application/octet-stream",
         **kwargs,
     )

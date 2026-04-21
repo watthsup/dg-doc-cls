@@ -14,7 +14,7 @@ _IMAGE_EXTENSIONS: frozenset[str] = frozenset({
 _ALL_EXTENSIONS: frozenset[str] = _PDF_EXTENSIONS | _IMAGE_EXTENSIONS
 
 
-def _detect_file_type(path: Path) -> str | None:
+def detect_file_type(path: Path) -> str | None:
     """Detect PDF or image from extension. None = unsupported."""
     suffix = path.suffix.lower()
     if suffix in _PDF_EXTENSIONS:
@@ -24,7 +24,7 @@ def _detect_file_type(path: Path) -> str | None:
     return None
 
 
-def _generate_document_id(path: Path) -> str:
+def generate_document_id(path: Path) -> str:
     """Filename + short hash for human-readable unique IDs."""
     path_hash = hashlib.md5(  # noqa: S324
         str(path.resolve()).encode()
@@ -48,12 +48,12 @@ def scan_documents(input_dir: Path) -> list[DocumentInput]:
     for file_path in sorted(input_dir.iterdir()):
         if not file_path.is_file():
             continue
-        file_type = _detect_file_type(file_path)
+        file_type = detect_file_type(file_path)
         if file_type is None:
             continue
         documents.append(
             DocumentInput(
-                document_id=_generate_document_id(file_path),
+                document_id=generate_document_id(file_path),
                 file_path=file_path.resolve(),
                 file_type=file_type,  # type: ignore[arg-type]
             )
