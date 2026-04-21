@@ -150,6 +150,7 @@ def analyze_document(
         model_id=model_id,
         body=file_bytes,
         content_type="application/octet-stream",
+        output_content_format="markdown",
         **kwargs,
     )
     result = poller.result()
@@ -200,7 +201,13 @@ def _parse_analyze_result(result: object) -> OCRResult:
             )
         )
 
-    return merge_ocr_results(pages)
+    ocr_result = merge_ocr_results(pages)
+
+    # Use Azure's markdown content if available, otherwise fallback to merged page text
+    if hasattr(result, "content") and result.content:
+        ocr_result.merged_text = result.content
+
+    return ocr_result
 
 
 def merge_ocr_results(pages: list[OCRPageResult]) -> OCRResult:
