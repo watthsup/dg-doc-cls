@@ -68,8 +68,12 @@ def load_document_images(
 
 
 def images_to_numpy(images: list[Image.Image]) -> list[NDArray[np.uint8]]:
-    """Convert PIL Images to numpy arrays for OpenCV processing."""
-    return [np.array(img) for img in images]
+    """Convert PIL Images to numpy arrays for OpenCV processing.
+
+    Ensures images are converted to RGB first to avoid boolean arrays
+    from 1-bit (black & white) source images which OpenCV doesn't support.
+    """
+    return [np.array(img.convert("RGB")) for img in images]
 
 
 def create_di_client(config: AppConfig) -> DocumentIntelligenceClient:

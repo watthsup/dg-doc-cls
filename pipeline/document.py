@@ -144,6 +144,7 @@ async def process_document(
 
     result = DocumentResult(
         document_id=document.document_id,
+        filename_doc_type=filename_doc_type,
         classification=ClassificationResult(
             primary_class=llm_output.primary_class,
             subcategory=llm_output.subcategory,
@@ -155,6 +156,7 @@ async def process_document(
         ocr_text=ocr_result.merged_text,
         processing_metadata=ProcessingMetadata(
             pages_used=actual_pages,
+            total_pages=total_pages,
             processing_time_ms=elapsed_ms,
         ),
     )

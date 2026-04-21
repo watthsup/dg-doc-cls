@@ -160,9 +160,10 @@ class QualityAssessment(BaseModel):
 
 
 class ProcessingMetadata(BaseModel):
-    """Metadata about how this document was processed."""
+    """Technical details about the execution."""
 
     pages_used: list[int] = Field(default_factory=list)
+    total_pages: int = Field(default=0, ge=0)
     processing_time_ms: int = Field(default=0, ge=0)
 
 
@@ -172,13 +173,13 @@ class ProcessingMetadata(BaseModel):
 
 
 class DocumentResult(BaseModel):
-    """Final output for a single document.
-
-    Built by merging LLM structured output with computed signals.
-    This is the top-level schema written to JSONL.
-    """
+    """Final output for a single document classification."""
 
     document_id: str
+    filename_doc_type: str | None = Field(
+        default=None,
+        description="Document type extracted from filename pattern (3rd part)",
+    )
     classification: ClassificationResult
     confidence: float = Field(ge=0.0, le=1.0)
     signals: SignalScores

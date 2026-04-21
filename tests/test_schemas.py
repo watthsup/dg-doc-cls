@@ -378,6 +378,7 @@ class TestDocumentResult:
         data = json.loads(result.model_dump_json())
         assert set(data.keys()) == {
             "document_id",
+            "filename_doc_type",
             "classification",
             "confidence",
             "signals",
