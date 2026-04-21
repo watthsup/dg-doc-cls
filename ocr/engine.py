@@ -17,7 +17,7 @@ import numpy as np
 from azure.ai.documentintelligence import DocumentIntelligenceClient
 from azure.core.credentials import AzureKeyCredential
 from pdf2image import convert_from_path
-from PIL import Image
+from PIL import Image, ImageSequence
 
 from schemas.models import OCRPageResult, OCRResult, OCRWordResult
 
@@ -37,6 +37,7 @@ def load_document_images(
     Called BEFORE Azure DI — these images are only used for OpenCV quality
     checks (blur, skew, contrast). Azure DI receives raw file bytes separately.
 
+    Supports PDF and multi-page TIFFs natively.
     DPI 150 is sufficient for quality metrics (lower than OCR-grade 300 DPI)
     and keeps memory usage reasonable for batch processing.
 
@@ -61,7 +62,9 @@ def load_document_images(
                 f"Ensure poppler is installed (brew install poppler). Error: {e}"
             ) from e
     else:
-        return [Image.open(file_path)]
+        # ImageSequence handles both single-page (jpg/png) and multi-page (tiff)
+        with Image.open(file_path) as img:
+            return [frame.copy() for frame in ImageSequence.Iterator(img)]
 
 
 def images_to_numpy(images: list[Image.Image]) -> list[NDArray[np.uint8]]:

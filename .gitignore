@@ -23,6 +23,12 @@ htmlcov/
 *.swp
 *.swo
 
+# Build and Distribution
+build/
+dist/
+*.egg-info/
+.eggs/
+
 # OS files
 .DS_Store
 

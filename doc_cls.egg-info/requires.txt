@@ -10,7 +10,6 @@ langchain-core>=0.3
 langchain-openai>=0.3
 structlog>=24.1
 tenacity>=8.2
-pandas>=2.2
 click>=8.1
 python-dotenv>=1.0
 

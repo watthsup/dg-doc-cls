@@ -30,3 +30,4 @@ tests/test_confidence.py
 tests/test_keywords.py
 tests/test_page_sampler.py
 tests/test_quality.py
+tests/test_schemas.py
