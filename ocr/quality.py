@@ -83,6 +83,12 @@ def _compute_contrast_score(gray: NDArray[np.uint8], min_std: float) -> float:
     return float(min(1.0, std_dev / (min_std * 3.0)))
 
 
+def _compute_skew_score(angle: float) -> float:
+    """Normalize skew angle (0-20 degrees) into 0.0-1.0 score."""
+    # 0 deg = 1.0 score, 20+ deg = 0.0 score
+    return float(max(0.0, 1.0 - (abs(angle) / 20.0)))
+
+
 def assess_image_quality(
     image: NDArray[np.uint8],
     blur_threshold: float = 100.0,
@@ -98,6 +104,7 @@ def assess_image_quality(
 
     blur_score = _compute_blur_score(gray, blur_threshold)
     skew_angle = _compute_skew_angle(gray)
+    skew_score = _compute_skew_score(skew_angle)
     contrast_score = _compute_contrast_score(gray, contrast_min)
 
     issues: list[str] = []
@@ -108,7 +115,8 @@ def assess_image_quality(
     if contrast_score < _CONTRAST_ISSUE_THRESHOLD:
         issues.append(f"Low contrast detected (score: {contrast_score:.2f})")
 
-    image_quality = (blur_score + contrast_score) / 2.0
+    # Image quality is now average of Blur, Contrast, and Skew
+    image_quality = (blur_score + contrast_score + skew_score) / 3.0
 
     return QualityAssessment(
         blur_score=blur_score,

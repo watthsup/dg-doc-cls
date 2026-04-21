@@ -81,9 +81,12 @@ class TestAssessImageQuality:
         result = assess_image_quality(_make_low_contrast_image())
         assert result.contrast_score < 0.3
 
-    def test_quality_score_is_mean_of_blur_and_contrast(self) -> None:
+    def test_quality_score_is_mean_of_signals(self) -> None:
         result = assess_image_quality(_make_sharp_text_image())
-        expected = (result.blur_score + result.contrast_score) / 2.0
+        # skew_score = 1.0 - (abs(skew) / 20.0)
+        from ocr.quality import _compute_skew_score
+        skew_s = _compute_skew_score(result.skew_angle)
+        expected = (result.blur_score + result.contrast_score + skew_s) / 3.0
         assert abs(result.quality_score - expected) < 0.001
 
     def test_skew_angle_near_zero_for_straight_image(self) -> None:
