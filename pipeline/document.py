@@ -103,10 +103,9 @@ async def process_document(
     # --- Merge OpenCV + OCR confidence into final quality assessment ---
     quality = merge_quality(image_quality, ocr_result)
     log.info(
-        "quality_merged",
-        image_quality=round(image_quality.quality_score, 3),
-        ocr_quality=round(quality.ocr_quality_score, 3),
-        combined=round(quality.quality_score, 3),
+        "quality_assessment_complete",
+        image_quality=round(quality.quality_score, 3),
+        ocr_confidence=round(ocr_result.overall_confidence, 3),
         total_issues=len(quality.issues),
     )
 

@@ -299,7 +299,6 @@ _QUALITY_DICT = {
     "blur_score": 0.8,
     "skew_angle": 1.5,
     "contrast_score": 0.7,
-    "ocr_quality_score": 0.85,
     "issues": [],
     "quality_score": 0.75,
 }
@@ -313,12 +312,11 @@ class TestQualityAssessment:
         assert q.blur_score == 0.8
 
     def test_internal_fields_excluded_from_json(self) -> None:
-        """blur_score, contrast_score, ocr_quality_score, quality_score must NOT appear in JSON output."""
+        """blur_score, contrast_score, quality_score must NOT appear in JSON output."""
         q = QualityAssessment.model_validate(_QUALITY_DICT)
         data = json.loads(q.model_dump_json())
         assert "blur_score" not in data
         assert "contrast_score" not in data
-        assert "ocr_quality_score" not in data
         assert "quality_score" not in data
 
     def test_public_fields_present_in_json(self) -> None:
@@ -396,7 +394,6 @@ class TestDocumentResult:
         assert "quality_score" not in qa
         assert "blur_score" not in qa
         assert "contrast_score" not in qa
-        assert "ocr_quality_score" not in qa
 
     def test_round_trip(self) -> None:
         """Parse from JSON → dump → re-parse — document_id must survive."""
