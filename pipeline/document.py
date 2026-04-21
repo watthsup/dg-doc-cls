@@ -153,6 +153,7 @@ async def process_document(
         confidence=confidence,
         signals=signals,
         quality_assessment=quality,
+        ocr_text=ocr_result.merged_text,
         processing_metadata=ProcessingMetadata(
             pages_used=actual_pages,
             processing_time_ms=elapsed_ms,

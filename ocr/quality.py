@@ -1,16 +1,11 @@
-"""Document quality assessment — two complementary signal sources.
+"""Document quality assessment — image-level metrics via OpenCV.
 
-1. OpenCV (pixel-level) — runs BEFORE Azure DI on locally rendered images:
-   - blur_score: Laplacian variance (sharp images have high variance)
-   - contrast_score: grayscale std dev
-   - skew_angle: contour minAreaRect analysis
+1. blur_score: Laplacian variance (sharp images have high variance)
+2. contrast_score: grayscale std dev
+3. skew_angle: contour minAreaRect analysis
 
-2. OCR confidence (text-level) — runs AFTER Azure DI returns results:
-   - ocr_quality_score: worst-page mean word confidence
-
-3. merge_quality() — combines both into a single QualityAssessment:
-   - quality_score = 0.6 * image_quality + 0.4 * ocr_quality
-   - issues from both sources are concatenated
+The QualityAssessment model focuses strictly on image-level metrics.
+OCR confidence is tracked separately in SignalScores to keep signals orthogonal.
 """
 
 from __future__ import annotations
@@ -25,9 +20,6 @@ from schemas.models import OCRResult, QualityAssessment
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-# --- Weights for combining image and OCR quality signals ---
-_IMAGE_QUALITY_WEIGHT: float = 0.6
-_OCR_QUALITY_WEIGHT: float = 0.4
 
 # --- OpenCV thresholds ---
 _BLUR_ISSUE_THRESHOLD: float = 0.3
@@ -60,18 +52,15 @@ def _compute_skew_angle(gray: NDArray[np.uint8]) -> float:
     dilated = cv2.dilate(binary, kernel, iterations=1)
 
     contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if not contours:
-        return 0.0
 
     angles: list[float] = []
-    min_contour_area = gray.shape[0] * gray.shape[1] * 0.001
-    for contour in contours:
-        if cv2.contourArea(contour) < min_contour_area:
+    for cnt in contours:
+        if cv2.contourArea(cnt) < 500:
             continue
-        rect = cv2.minAreaRect(contour)
+        rect = cv2.minAreaRect(cnt)
         angle = rect[2]
         if angle < -45:
-            angle += 90
+            angle = 90 + angle
         angles.append(angle)
 
     return float(np.median(angles)) if angles else 0.0
@@ -122,9 +111,8 @@ def assess_image_quality(
         blur_score=blur_score,
         skew_angle=skew_angle,
         contrast_score=contrast_score,
-        ocr_quality_score=0.0,  # Not yet available — set by merge_quality()
         issues=issues,
-        quality_score=image_quality,  # Image-only until merged
+        quality_score=image_quality,
     )
 
 
@@ -139,7 +127,6 @@ def assess_multi_page_quality(
             blur_score=0.0,
             skew_angle=0.0,
             contrast_score=0.0,
-            ocr_quality_score=0.0,
             issues=["No images provided for quality assessment"],
             quality_score=0.0,
         )
@@ -158,50 +145,9 @@ def assess_multi_page_quality(
         blur_score=worst.blur_score,
         skew_angle=worst.skew_angle,
         contrast_score=worst.contrast_score,
-        ocr_quality_score=0.0,  # Set by merge_quality() after OCR
         issues=all_issues,
         quality_score=worst.quality_score,
     )
-
-
-# ---------------------------------------------------------------------------
-# OCR confidence quality (text-level)
-# ---------------------------------------------------------------------------
-
-
-def _ocr_quality_score_from_result(ocr_result: OCRResult) -> tuple[float, list[str]]:
-    """Extract OCR quality score and issues from Azure DI result.
-
-    Returns (worst_page_score 0–1, issues list).
-    """
-    if not ocr_result.pages:
-        return 0.0, ["No pages available for OCR quality assessment"]
-
-    issues: list[str] = []
-    page_scores: list[float] = []
-
-    for page in ocr_result.pages:
-        page_conf = page.mean_confidence / 100.0
-        page_scores.append(page_conf)
-        label = f"Page {page.page_index}"
-
-        if len(page.words) < _MIN_WORDS_PER_PAGE:
-            issues.append(
-                f"{label}: Very few words detected ({len(page.words)})"
-                " — possibly blank or image-only"
-            )
-        if page_conf < _VERY_LOW_CONFIDENCE_THRESHOLD:
-            issues.append(
-                f"{label}: Very low OCR confidence ({page_conf:.2f})"
-                " — likely poor quality or handwritten"
-            )
-        elif page_conf < _LOW_CONFIDENCE_THRESHOLD:
-            issues.append(
-                f"{label}: Low OCR confidence ({page_conf:.2f})"
-                " — may affect classification accuracy"
-            )
-
-    return min(page_scores), issues
 
 
 # ---------------------------------------------------------------------------
@@ -210,30 +156,40 @@ def _ocr_quality_score_from_result(ocr_result: OCRResult) -> tuple[float, list[s
 
 
 def merge_quality(
-    image_quality: QualityAssessment,
+    image_assessment: QualityAssessment,
     ocr_result: OCRResult,
 ) -> QualityAssessment:
-    """Merge OpenCV quality with OCR confidence into a single assessment.
+    """Merge OCR signals into image assessment (issues only).
 
-    quality_score = 0.6 * image_quality + 0.4 * ocr_quality
-
-    The two signals are complementary:
-    - Image quality catches visual problems (blur, skew) even before OCR
-    - OCR quality catches readability problems (handwriting, heavy noise)
-      that pixel-level metrics may miss
+    The 'quality_score' remains strictly image-based (OpenCV).
+    OCR signals are used only to append warning issues if confidence is low.
+    This keeps the signals orthogonal in the final SignalScores model.
     """
-    ocr_score, ocr_issues = _ocr_quality_score_from_result(ocr_result)
+    new_issues = list(image_assessment.issues)
 
-    combined_score = (
-        _IMAGE_QUALITY_WEIGHT * image_quality.quality_score
-        + _OCR_QUALITY_WEIGHT * ocr_score
-    )
+    if ocr_result.pages:
+        for page in ocr_result.pages:
+            page_conf = page.mean_confidence / 100.0
+            label = f"Page {page.page_index}"
 
-    return QualityAssessment(
-        blur_score=image_quality.blur_score,
-        skew_angle=image_quality.skew_angle,
-        contrast_score=image_quality.contrast_score,
-        ocr_quality_score=ocr_score,
-        issues=image_quality.issues + ocr_issues,
-        quality_score=min(1.0, max(0.0, combined_score)),
+            if len(page.words) < _MIN_WORDS_PER_PAGE:
+                new_issues.append(
+                    f"{label}: Very few words detected ({len(page.words)})"
+                    " — possibly blank or image-only"
+                )
+            if page_conf < _VERY_LOW_CONFIDENCE_THRESHOLD:
+                new_issues.append(
+                    f"{label}: Very low OCR confidence ({page_conf:.2f})"
+                    " — likely poor quality or handwritten"
+                )
+            elif page_conf < _LOW_CONFIDENCE_THRESHOLD:
+                new_issues.append(
+                    f"{label}: Low OCR confidence ({page_conf:.2f})"
+                    " — may affect classification accuracy"
+                )
+
+    return image_assessment.model_copy(
+        update={
+            "issues": new_issues,
+        }
     )

@@ -140,14 +140,9 @@ class SignalScores(BaseModel):
 
 
 class QualityAssessment(BaseModel):
-    """Combined document quality from both OpenCV and OCR confidence.
+    """Combined document quality from OpenCV image metrics.
 
-    Two complementary signal sources:
-    - OpenCV (pixel-level): blur, skew, contrast — runs on rendered images
-    - OCR confidence (text-level): Azure DI word confidence — runs post-OCR
-
-    All score fields are excluded from the JSON output (internal use only).
-    quality_score = weighted average of image_quality and ocr_quality.
+    OCR confidence is tracked separately in SignalScores to keep signals orthogonal.
     """
 
     issues: list[str] = Field(default_factory=list)
@@ -155,13 +150,6 @@ class QualityAssessment(BaseModel):
     # --- Internal scores (excluded from JSON output) ---
     blur_score: float = Field(default=0.0, ge=0.0, le=1.0, exclude=True)
     contrast_score: float = Field(default=0.0, ge=0.0, le=1.0, exclude=True)
-    ocr_quality_score: float = Field(
-        default=0.0,
-        ge=0.0,
-        le=1.0,
-        exclude=True,
-        description="Worst-page OCR word confidence (0–1)",
-    )
     quality_score: float = Field(
         default=0.0,
         ge=0.0,
@@ -195,6 +183,10 @@ class DocumentResult(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0)
     signals: SignalScores
     quality_assessment: QualityAssessment
+    ocr_text: str = Field(
+        default="",
+        description="Full text extracted by OCR and used for classification",
+    )
     processing_metadata: ProcessingMetadata = Field(default_factory=ProcessingMetadata)
 
 

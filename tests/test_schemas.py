@@ -384,6 +384,7 @@ class TestDocumentResult:
             "confidence",
             "signals",
             "quality_assessment",
+            "ocr_text",
             "processing_metadata",
         }
 
