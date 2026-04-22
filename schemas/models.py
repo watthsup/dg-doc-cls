@@ -187,24 +187,16 @@ class PageResult(BaseModel):
 
 
 class DocumentResult(BaseModel):
-    """Final output for a single document classification."""
+    """Final output for a single document, containing per-page results."""
 
     document_id: str
     filename_doc_type: str | None = Field(
         default=None,
         description="Document type extracted from filename pattern (3rd part)",
     )
-    classification: ClassificationResult
-    confidence: float = Field(ge=0.0, le=1.0)
     pages: list[PageResult] = Field(
         default_factory=list,
         description="Detailed classification results for each page",
-    )
-    signals: SignalScores
-    quality_assessment: QualityAssessment
-    ocr_text: str = Field(
-        default="",
-        description="Full text extracted by OCR and used for classification",
     )
     processing_metadata: ProcessingMetadata = Field(default_factory=ProcessingMetadata)
 

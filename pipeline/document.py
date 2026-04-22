@@ -158,19 +158,12 @@ async def process_document(
     if not page_results:
         raise ValueError(f"No pages could be processed for document {document.document_id}")
 
-    # --- 6. Aggregate to DocumentResult (Highest Confidence Page) ---
-    best_page = max(page_results, key=lambda p: p.confidence)
-
+    # --- 6. Aggregate to DocumentResult ---
     elapsed_ms = int((time.monotonic() - start_time) * 1000)
 
     result = DocumentResult(
         document_id=document.document_id,
         filename_doc_type=filename_doc_type,
-        classification=best_page.classification,
-        confidence=best_page.confidence,
-        signals=best_page.signals,
-        quality_assessment=best_page.quality_assessment,
-        ocr_text=ocr_result.merged_text,
         pages=page_results,
         processing_metadata=ProcessingMetadata(
             pages_used=[p.page_index for p in page_results],
@@ -179,17 +172,10 @@ async def process_document(
         ),
     )
 
-    if result.confidence < config.low_confidence_threshold:
-        log.warning(
-            "low_confidence_document",
-            confidence=round(result.confidence, 3),
-            threshold=config.low_confidence_threshold,
-        )
-
     log.info(
         "document_complete",
-        confidence=round(result.confidence, 3),
-        best_page_index=best_page.page_index,
+        total_pages=total_pages,
+        processed_pages=len(page_results),
         elapsed_ms=elapsed_ms,
     )
     return result

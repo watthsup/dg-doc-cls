@@ -86,15 +86,10 @@ def main(
     else:
         # Pretty print for humans
         click.echo(f"\n{'='*50}")
-        click.echo("DOCUMENT-LEVEL SUMMARY (Highest Confidence Page)")
+        click.echo("DOCUMENT SUMMARY")
         click.echo(f"{'='*50}")
         click.echo(f"Document ID: {result.document_id}")
         click.echo(f"Doc Type:    {result.filename_doc_type or 'N/A'}")
-        click.echo(f"Primary:     {result.classification.primary_class.value}")
-        click.echo(f"Subcategory: {result.classification.subcategory.value}")
-        if result.classification.hospital_name:
-            click.echo(f"Hospital:    {result.classification.hospital_name}")
-        click.echo(f"Confidence:  {result.confidence:.3f}")
         
         click.echo(f"\nProcessing Details:")
         click.echo(f"  - Total Pages: {result.processing_metadata.total_pages}")

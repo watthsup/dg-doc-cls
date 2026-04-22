@@ -340,23 +340,31 @@ class TestQualityAssessment:
 
 _RESULT_JSON = """{
     "document_id": "report_abc123ef",
-    "classification": {
-        "primary_class": "medical",
-        "subcategory": "lab"
-    },
-    "confidence": 0.82,
-    "signals": {
-        "ocr_confidence": 0.75,
-        "keyword_score": 0.80,
-        "quality_score": 0.90
-    },
-    "quality_assessment": {
-        "issues": [],
-        "skew_angle": 1.2
-    },
+    "filename_doc_type": "U62400",
+    "pages": [
+        {
+            "page_index": 0,
+            "classification": {
+                "primary_class": "medical",
+                "subcategory": "lab"
+            },
+            "confidence": 0.82,
+            "signals": {
+                "ocr_confidence": 0.75,
+                "keyword_score": 0.80,
+                "quality_score": 0.90
+            },
+            "quality_assessment": {
+                "issues": [],
+                "skew_angle": 1.2
+            },
+            "ocr_text": "sample text"
+        }
+    ],
     "processing_metadata": {
         "pages_used": [0, 1],
-        "processing_time_ms": 3200
+        "processing_time_ms": 3200,
+        "total_pages": 2
     }
 }"""
 
@@ -367,9 +375,10 @@ class TestDocumentResult:
         """Simulate reading a line from results.jsonl."""
         result = DocumentResult.model_validate_json(_RESULT_JSON)
         assert result.document_id == "report_abc123ef"
-        assert result.classification.primary_class == PrimaryClass.MEDICAL
-        assert result.classification.subcategory == Subcategory.LAB
-        assert result.confidence == 0.82
+        assert len(result.pages) == 1
+        assert result.pages[0].classification.primary_class == PrimaryClass.MEDICAL
+        assert result.pages[0].classification.subcategory == Subcategory.LAB
+        assert result.pages[0].confidence == 0.82
         assert result.processing_metadata.pages_used == [0, 1]
 
     def test_json_output_matches_contract(self) -> None:
@@ -379,12 +388,7 @@ class TestDocumentResult:
         assert set(data.keys()) == {
             "document_id",
             "filename_doc_type",
-            "classification",
-            "confidence",
             "pages",
-            "signals",
-            "quality_assessment",
-            "ocr_text",
             "processing_metadata",
         }
 
@@ -392,7 +396,7 @@ class TestDocumentResult:
         """Internal quality fields must never appear when writing JSONL."""
         result = DocumentResult.model_validate_json(_RESULT_JSON)
         data = json.loads(result.model_dump_json())
-        qa = data["quality_assessment"]
+        qa = data["pages"][0]["quality_assessment"]
         assert "quality_score" not in qa
         assert "blur_score" not in qa
         assert "contrast_score" not in qa
@@ -402,12 +406,13 @@ class TestDocumentResult:
         original = DocumentResult.model_validate_json(_RESULT_JSON)
         restored = DocumentResult.model_validate_json(original.model_dump_json())
         assert original.document_id == restored.document_id
-        assert original.classification.primary_class == restored.classification.primary_class
-        assert original.confidence == restored.confidence
+        assert len(original.pages) == len(restored.pages)
+        assert original.pages[0].classification.primary_class == restored.pages[0].classification.primary_class
+        assert original.pages[0].confidence == restored.pages[0].confidence
 
     def test_invalid_confidence_rejected(self) -> None:
         bad = json.loads(_RESULT_JSON)
-        bad["confidence"] = 1.5
+        bad["pages"][0]["confidence"] = 1.5
         with pytest.raises(ValidationError):
             DocumentResult.model_validate(bad)
 
