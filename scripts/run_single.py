@@ -86,28 +86,41 @@ def main(
     else:
         # Pretty print for humans
         click.echo(f"\n{'='*50}")
-        click.echo("DOCUMENT CLASSIFICATION RESULT")
+        click.echo("DOCUMENT-LEVEL SUMMARY (Highest Confidence Page)")
         click.echo(f"{'='*50}")
         click.echo(f"Document ID: {result.document_id}")
+        click.echo(f"Doc Type:    {result.filename_doc_type or 'N/A'}")
         click.echo(f"Primary:     {result.classification.primary_class.value}")
         click.echo(f"Subcategory: {result.classification.subcategory.value}")
         if result.classification.hospital_name:
             click.echo(f"Hospital:    {result.classification.hospital_name}")
         click.echo(f"Confidence:  {result.confidence:.3f}")
         
-        click.echo(f"\nSignal Scores:")
-        click.echo(f"  - OCR:      {result.signals.ocr_confidence:.3f}")
-        click.echo(f"  - Quality:  {result.signals.quality_score:.3f}")
-        click.echo(f"  - Keywords: {result.signals.keyword_score:.3f}")
-
-        if result.quality_assessment.issues:
-            click.echo(f"\nQuality Issues:")
-            for issue in result.quality_assessment.issues:
-                click.echo(f"  ⚠️  {issue}")
-        
         click.echo(f"\nProcessing Details:")
-        click.echo(f"  - Pages Used: {result.processing_metadata.pages_used}")
-        click.echo(f"  - Time:       {result.processing_metadata.processing_time_ms}ms")
+        click.echo(f"  - Total Pages: {result.processing_metadata.total_pages}")
+        click.echo(f"  - Time:        {result.processing_metadata.processing_time_ms}ms")
+
+        click.echo(f"\n{'='*50}")
+        click.echo("PER-PAGE BREAKDOWN")
+        click.echo(f"{'='*50}")
+        
+        for page in result.pages:
+            click.echo(f"\n[ Page {page.page_index} ]")
+            click.echo(f"  Primary:     {page.classification.primary_class.value}")
+            click.echo(f"  Subcategory: {page.classification.subcategory.value}")
+            if page.classification.hospital_name:
+                click.echo(f"  Hospital:    {page.classification.hospital_name}")
+            click.echo(f"  Confidence:  {page.confidence:.3f}")
+            
+            click.echo(f"  Signals:")
+            click.echo(f"    - OCR:      {page.signals.ocr_confidence:.3f}")
+            click.echo(f"    - Quality:  {page.signals.quality_score:.3f}")
+            click.echo(f"    - Keywords: {page.signals.keyword_score:.3f}")
+
+            if page.quality_assessment.issues:
+                click.echo(f"  Issues:")
+                for issue in page.quality_assessment.issues:
+                    click.echo(f"    ⚠️  {issue}")
         click.echo(f"{'='*50}\n")
 
 

@@ -120,34 +120,14 @@ def assess_multi_page_quality(
     images: list[NDArray[np.uint8]],
     blur_threshold: float = 100.0,
     contrast_min: float = 30.0,
-) -> QualityAssessment:
-    """Assess OpenCV quality across pages — worst page determines score."""
+) -> list[QualityAssessment]:
+    """Assess OpenCV quality for each page individually."""
     if not images:
-        return QualityAssessment(
-            blur_score=0.0,
-            skew_angle=0.0,
-            contrast_score=0.0,
-            issues=["No images provided for quality assessment"],
-            quality_score=0.0,
-        )
+        return []
 
-    assessments = [
+    return [
         assess_image_quality(img, blur_threshold, contrast_min) for img in images
     ]
-    worst = min(assessments, key=lambda a: a.quality_score)
-
-    all_issues: list[str] = []
-    for i, a in enumerate(assessments):
-        for issue in a.issues:
-            all_issues.append(f"Page {i}: {issue}")
-
-    return QualityAssessment(
-        blur_score=worst.blur_score,
-        skew_angle=worst.skew_angle,
-        contrast_score=worst.contrast_score,
-        issues=all_issues,
-        quality_score=worst.quality_score,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -155,38 +135,37 @@ def assess_multi_page_quality(
 # ---------------------------------------------------------------------------
 
 
+from schemas.models import OCRPageResult, OCRResult, QualityAssessment
+
 def merge_quality(
     image_assessment: QualityAssessment,
-    ocr_result: OCRResult,
+    ocr_page: OCRPageResult,
 ) -> QualityAssessment:
-    """Merge OCR signals into image assessment (issues only).
+    """Merge OCR signals into image assessment (issues only) for a single page.
 
     The 'quality_score' remains strictly image-based (OpenCV).
     OCR signals are used only to append warning issues if confidence is low.
-    This keeps the signals orthogonal in the final SignalScores model.
     """
     new_issues = list(image_assessment.issues)
 
-    if ocr_result.pages:
-        for page in ocr_result.pages:
-            page_conf = page.mean_confidence / 100.0
-            label = f"Page {page.page_index}"
+    page_conf = ocr_page.mean_confidence / 100.0
+    label = f"Page {ocr_page.page_index}"
 
-            if len(page.words) < _MIN_WORDS_PER_PAGE:
-                new_issues.append(
-                    f"{label}: Very few words detected ({len(page.words)})"
-                    " — possibly blank or image-only"
-                )
-            if page_conf < _VERY_LOW_CONFIDENCE_THRESHOLD:
-                new_issues.append(
-                    f"{label}: Very low OCR confidence ({page_conf:.2f})"
-                    " — likely poor quality or handwritten"
-                )
-            elif page_conf < _LOW_CONFIDENCE_THRESHOLD:
-                new_issues.append(
-                    f"{label}: Low OCR confidence ({page_conf:.2f})"
-                    " — may affect classification accuracy"
-                )
+    if len(ocr_page.words) < _MIN_WORDS_PER_PAGE:
+        new_issues.append(
+            f"{label}: Very few words detected ({len(ocr_page.words)})"
+            " — possibly blank or image-only"
+        )
+    if page_conf < _VERY_LOW_CONFIDENCE_THRESHOLD:
+        new_issues.append(
+            f"{label}: Very low OCR confidence ({page_conf:.2f})"
+            " — likely poor quality or handwritten"
+        )
+    elif page_conf < _LOW_CONFIDENCE_THRESHOLD:
+        new_issues.append(
+            f"{label}: Low OCR confidence ({page_conf:.2f})"
+            " — may affect classification accuracy"
+        )
 
     return image_assessment.model_copy(
         update={

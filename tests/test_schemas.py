@@ -381,6 +381,7 @@ class TestDocumentResult:
             "filename_doc_type",
             "classification",
             "confidence",
+            "pages",
             "signals",
             "quality_assessment",
             "ocr_text",

@@ -72,49 +72,39 @@ class TestAssessImageQuality:
 
 class TestAssessMultiPageQuality:
 
-    def test_worst_page_determines_score(self) -> None:
+    def test_returns_list_of_assessments(self) -> None:
         sharp = _make_sharp_text_image()
         blurry = _make_blurry_image()
-        result = assess_multi_page_quality([sharp, blurry])
-        single_blurry = assess_image_quality(blurry)
-        assert result.quality_score == pytest.approx(single_blurry.quality_score, abs=0.01)
-
-    def test_issues_include_page_numbers(self) -> None:
-        blurry = _make_blurry_image()
-        result = assess_multi_page_quality([blurry, blurry])
-        assert any("Page 0" in issue for issue in result.issues)
-        assert any("Page 1" in issue for issue in result.issues)
+        results = assess_multi_page_quality([sharp, blurry])
+        
+        assert len(results) == 2
+        assert results[0].quality_score > results[1].quality_score
+        
+    def test_empty_images_returns_empty_list(self) -> None:
+        assert assess_multi_page_quality([]) == []
 
 
 class TestMergeQuality:
 
     def test_merge_does_not_change_score(self) -> None:
         image_q = assess_image_quality(_make_sharp_text_image())
-        ocr = OCRResult(
-            pages=[OCRPageResult(page_index=0, text="test", mean_confidence=95.0)],
-            merged_text="test",
-            overall_confidence=0.95,
-        )
-        merged = merge_quality(image_q, ocr)
+        ocr_page = OCRPageResult(page_index=0, text="test", mean_confidence=95.0)
+        merged = merge_quality(image_q, ocr_page)
         # Score should be EXACTLY the same as before merge
         assert merged.quality_score == image_q.quality_score
 
     def test_merge_concatenates_ocr_issues(self) -> None:
         image_q = assess_image_quality(_make_sharp_text_image())
         # Bad OCR confidence (e.g. 20%)
-        ocr = OCRResult(
-            pages=[OCRPageResult(page_index=0, text="test", mean_confidence=20.0)],
-            merged_text="test",
-            overall_confidence=0.20,
-        )
-        merged = merge_quality(image_q, ocr)
+        ocr_page = OCRPageResult(page_index=0, text="test", mean_confidence=20.0)
+        merged = merge_quality(image_q, ocr_page)
         assert any("ocr confidence" in issue.lower() for issue in merged.issues)
         assert any("Page 0" in issue for issue in merged.issues)
 
     def test_merge_preserves_opencv_fields(self) -> None:
         image_q = assess_image_quality(_make_sharp_text_image())
-        ocr = OCRResult(pages=[], merged_text="", overall_confidence=0.0)
-        merged = merge_quality(image_q, ocr)
+        ocr_page = OCRPageResult(page_index=0, text="", mean_confidence=0.0)
+        merged = merge_quality(image_q, ocr_page)
         assert merged.blur_score == image_q.blur_score
         assert merged.contrast_score == image_q.contrast_score
         assert merged.skew_angle == image_q.skew_angle

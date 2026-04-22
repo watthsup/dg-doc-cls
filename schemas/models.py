@@ -172,6 +172,20 @@ class ProcessingMetadata(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class PageResult(BaseModel):
+    """Classification result for a single page."""
+
+    page_index: int = Field(ge=0)
+    classification: ClassificationResult
+    confidence: float = Field(ge=0.0, le=1.0)
+    signals: SignalScores
+    quality_assessment: QualityAssessment
+    ocr_text: str = Field(
+        default="",
+        description="Text extracted by OCR for this page",
+    )
+
+
 class DocumentResult(BaseModel):
     """Final output for a single document classification."""
 
@@ -182,6 +196,10 @@ class DocumentResult(BaseModel):
     )
     classification: ClassificationResult
     confidence: float = Field(ge=0.0, le=1.0)
+    pages: list[PageResult] = Field(
+        default_factory=list,
+        description="Detailed classification results for each page",
+    )
     signals: SignalScores
     quality_assessment: QualityAssessment
     ocr_text: str = Field(
