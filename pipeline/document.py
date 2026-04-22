@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from classifier.keywords import get_keyword_score_for_class
 from confidence.calculator import ConfidenceWeights, calculate_confidence
 from ocr.engine import analyze_document, create_di_client, images_to_numpy, load_document_images
 from ocr.quality import assess_multi_page_quality, merge_quality
@@ -115,21 +114,14 @@ async def process_document(
         # LLM Classification
         llm_output = await classifier.classify(ocr_page.text)
 
-        # Keyword score
-        keyword_score = get_keyword_score_for_class(
-            ocr_page.text, llm_output.subcategory
-        )
-
         # Confidence
         signals = SignalScores(
             ocr_confidence=ocr_page.mean_confidence / 100.0,
-            keyword_score=keyword_score,
             quality_score=quality.quality_score,
         )
         confidence = calculate_confidence(
             signals,
             weights=ConfidenceWeights(
-                keyword=config.keyword_weight,
                 ocr=config.ocr_weight,
                 quality=config.quality_weight,
             ),

@@ -92,8 +92,7 @@ class AppConfig(BaseSettings):
     max_concurrency: int = Field(default=5, ge=1, le=50)
 
     # --- Confidence Weights ---
-    keyword_weight: float = Field(default=0.5, ge=0.0, le=1.0)
-    ocr_weight: float = Field(default=0.3, ge=0.0, le=1.0)
+    ocr_weight: float = Field(default=0.8, ge=0.0, le=1.0)
     quality_weight: float = Field(default=0.2, ge=0.0, le=1.0)
 
     # --- Confidence Thresholds ---

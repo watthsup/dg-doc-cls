@@ -268,25 +268,27 @@ class TestOCRResult:
 class TestSignalScores:
 
     def test_parse_from_dict(self) -> None:
-        data = {"ocr_confidence": 0.8, "keyword_score": 0.6, "quality_score": 0.9}
+        data = {"ocr_confidence": 0.8, "quality_score": 0.9}
         signals = SignalScores.model_validate(data)
         assert signals.ocr_confidence == 0.8
+        assert signals.quality_score == 0.9
 
     def test_parse_from_json_string(self) -> None:
-        json_str = '{"ocr_confidence": 0.75, "keyword_score": 0.5, "quality_score": 0.85}'
+        json_str = '{"ocr_confidence": 0.75, "quality_score": 0.85}'
         signals = SignalScores.model_validate_json(json_str)
-        assert signals.keyword_score == 0.5
+        assert signals.ocr_confidence == 0.75
+        assert signals.quality_score == 0.85
 
     def test_value_above_one_rejected(self) -> None:
         with pytest.raises(ValidationError):
             SignalScores.model_validate(
-                {"ocr_confidence": 1.1, "keyword_score": 0.5, "quality_score": 0.5}
+                {"ocr_confidence": 1.1, "quality_score": 0.5}
             )
 
     def test_negative_value_rejected(self) -> None:
         with pytest.raises(ValidationError):
             SignalScores.model_validate(
-                {"ocr_confidence": 0.5, "keyword_score": -0.1, "quality_score": 0.5}
+                {"ocr_confidence": 0.5, "quality_score": -0.1}
             )
 
 
@@ -351,7 +353,6 @@ _RESULT_JSON = """{
             "confidence": 0.82,
             "signals": {
                 "ocr_confidence": 0.75,
-                "keyword_score": 0.80,
                 "quality_score": 0.90
             },
             "quality_assessment": {

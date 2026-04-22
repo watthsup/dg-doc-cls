@@ -135,7 +135,6 @@ class SignalScores(BaseModel):
     """
 
     ocr_confidence: float = Field(ge=0.0, le=1.0)
-    keyword_score: float = Field(ge=0.0, le=1.0)
     quality_score: float = Field(ge=0.0, le=1.0)
 
 

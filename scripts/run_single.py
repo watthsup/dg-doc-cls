@@ -110,7 +110,6 @@ def main(
             click.echo(f"  Signals:")
             click.echo(f"    - OCR:      {page.signals.ocr_confidence:.3f}")
             click.echo(f"    - Quality:  {page.signals.quality_score:.3f}")
-            click.echo(f"    - Keywords: {page.signals.keyword_score:.3f}")
 
             if page.quality_assessment.issues:
                 click.echo(f"  Issues:")
