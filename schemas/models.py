@@ -204,6 +204,10 @@ class DocumentResult(BaseModel):
         default=None,
         description="Document type extracted from filename pattern (3rd part)",
     )
+    hospital_name: str | None = Field(
+        default=None,
+        description="Hospital name determined by majority voting across pages",
+    )
     pages: list[PageResult] = Field(
         default_factory=list,
         description="Detailed classification results for each page",

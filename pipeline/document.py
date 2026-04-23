@@ -151,12 +151,24 @@ async def process_document(
         raise ValueError(f"No pages could be processed for document {document.document_id}")
 
     # --- 6. Aggregate to DocumentResult ---
+    # Majority voting for hospital name
+    from collections import Counter
+    hospital_names = [
+        p.classification.hospital_name 
+        for p in page_results 
+        if p.classification.hospital_name and p.classification.hospital_name.strip() and p.classification.hospital_name.lower() != "unknown"
+    ]
+    doc_hospital_name = None
+    if hospital_names:
+        doc_hospital_name = Counter(hospital_names).most_common(1)[0][0]
+
     elapsed_ms = int((time.monotonic() - start_time) * 1000)
 
     result = DocumentResult(
         document_id=document.document_id,
         file_name=document.file_path.name,
         filename_doc_type=filename_doc_type,
+        hospital_name=doc_hospital_name,
         pages=page_results,
         processing_metadata=ProcessingMetadata(
             pages_used=[p.page_index for p in page_results],

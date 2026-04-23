@@ -78,6 +78,9 @@ if uploaded_file is not None:
 
     status_msg.success(f"Classification Complete! ({result.processing_metadata.processing_time_ms} ms)")
 
+    if result.hospital_name:
+        st.info(f"🏥 **Document Hospital (Majority Vote):** {result.hospital_name}")
+
     # --- UI Layout ---
     st.markdown("---")
 

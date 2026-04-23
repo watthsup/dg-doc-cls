@@ -399,6 +399,7 @@ class TestDocumentResult:
             "document_id",
             "file_name",
             "filename_doc_type",
+            "hospital_name",
             "pages",
             "processing_metadata",
         }

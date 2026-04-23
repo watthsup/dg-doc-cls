@@ -24,7 +24,7 @@ If primary_class is "medical":
 - **lab**: Must contain the specific clinical tests. Look for tabular data containing "Test Name", "Result", "Units", \
 and crucially "Reference Range" or "Interval". Common Keywords: CBC, BUN, Creatine, Lipid Profile, mg/dL, mmol/L
 - **health_check**: Must contains Comprehensive wellness reports or physical exams. Must includes overall health assessment, such as \
-vitals (Blood Pressure, BMI, Heart Rate) and a final summary of multiple different types of tests
+vitals (Blood Pressure, BMI, Heart Rate), Lungs (Spirometry) and a final summary of multiple different types of tests
 - **imaging_report**: Must contain Reports for Ultrasound, X-ray, CT, MRI, or EKG. Look for header like "Findings", "Impressions" or "Clinical History".\
 These are narrative-havy and describe anatomical observations
 - **ipd_opd_document**: Must contain Physician encounter notes for both outpatients(OPD) and inpatients(IPD). Look for "Patient Admission Record", "OPD Card", or "Clinical Note".
