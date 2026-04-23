@@ -29,6 +29,7 @@ vitals (Blood Pressure, BMI, Heart Rate) and a final summary of multiple differe
 These are narrative-havy and describe anatomical observations
 - **encounter_records**: [STRICT] Must contain Physician encounter notes for both outpatients(OPD) and inpatients(IPD). Look for "Patient Admission Record", "OPD Card", or "Clinical Note".\
 Features inclde SOAP format (Chief Compliant, Physical Exam, Diagnosis)
+- **doctor_order_sheets**: Forms for clinical instruction, medication lists (Home Medicine), tasks of treatment. Look for "Doctor's Order"
 - **medical_certificate**: [STRICT] Document certifying illness or fitness usually include doctor's comments to do something e.g. sick leave.
 - **discharge_summary**: [STRICT] Detailed history of hospital stay, including ICD-10 codes and "Diagnosis".
 - **medical_other**: **REQUIRED FALLBACK**. You MUST use this category if:

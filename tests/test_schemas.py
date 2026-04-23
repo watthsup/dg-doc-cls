@@ -86,10 +86,10 @@ class TestValidSubcategories:
             Subcategory.HEALTH_CHECK,
             Subcategory.IMAGING_REPORT,
             Subcategory.ENCOUNTER_RECORDS,
-            Subcategory.PRESCRIPTIONS,
             Subcategory.MEDICAL_CERTIFICATE,
             Subcategory.DISCHARGE_SUMMARY,
             Subcategory.MEDICAL_OTHER,
+            Subcategory.DOCTOR_ORDER_SHEETS,
         }
 
     def test_non_medical_subcategories(self) -> None:
