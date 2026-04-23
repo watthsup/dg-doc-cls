@@ -27,10 +27,8 @@ and crucially "Reference Range" or "Interval". Common Keywords: CBC, BUN, Creati
 vitals (Blood Pressure, BMI, Heart Rate) and a final summary of multiple different types of tests
 - **imaging_report**: [STRICT] Must contain Reports for Ultrasound, X-ray, CT, MRI, or EKG. Look for header like "Findings", "Impressions" or "Clinical History".\
 These are narrative-havy and describe anatomical observations
-- **opd_records**: [STRICT] Outpatient department records, including OPD cards and outpatient visit summaries.
 - **encounter_records**: [STRICT] Must contain Physician encounter notes for both outpatients(OPD) and inpatients(IPD). Look for "Patient Admission Record", "OPD Card", or "Clinical Note".\
 Features inclde SOAP format (Chief Compliant, Physical Exam, Diagnosis)
-- **prescriptions**: [STRICT] Must contain medication names, and dosages or any context that describes medicines or treatment chemicals.
 - **medical_certificate**: [STRICT] Document certifying illness or fitness usually include doctor's comments to do something e.g. sick leave.
 - **discharge_summary**: [STRICT] Detailed history of hospital stay, including ICD-10 codes and "Diagnosis".
 - **medical_other**: **REQUIRED FALLBACK**. You MUST use this category if:

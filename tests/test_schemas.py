@@ -70,7 +70,7 @@ class TestSubcategory:
         assert Subcategory.OTHER == "other"
 
     def test_all_subcategories_covered(self) -> None:
-        assert len(list(Subcategory)) == 12
+        assert len(list(Subcategory)) == 11
 
     def test_parse_from_string(self) -> None:
         assert Subcategory("lab") == Subcategory.LAB
@@ -85,7 +85,6 @@ class TestValidSubcategories:
             Subcategory.LAB,
             Subcategory.HEALTH_CHECK,
             Subcategory.IMAGING_REPORT,
-            Subcategory.OPD_RECORDS,
             Subcategory.ENCOUNTER_RECORDS,
             Subcategory.PRESCRIPTIONS,
             Subcategory.MEDICAL_CERTIFICATE,
