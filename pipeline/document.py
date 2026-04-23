@@ -59,7 +59,8 @@ async def process_document(
 
     # --- 1. Load pages locally (PIL Images for quality assessment) ---
     log.info("loading_document", file_type=document.file_type)
-    all_images = load_document_images(
+    all_images = await asyncio.to_thread(
+        load_document_images,
         file_path=document.file_path,
         file_type=document.file_type,
     )
@@ -73,7 +74,8 @@ async def process_document(
 
     # --- 3. OpenCV quality assessment (per page, local) ---
     numpy_images = images_to_numpy(all_images)
-    image_qualities = assess_multi_page_quality(
+    image_qualities = await asyncio.to_thread(
+        assess_multi_page_quality,
         images=numpy_images,
         blur_threshold=config.blur_threshold,
         contrast_min=config.contrast_min,
@@ -81,7 +83,9 @@ async def process_document(
 
     # --- 4. Azure DI OCR (all pages) ---
     log.info("starting_ocr", total_pages=total_pages)
-    ocr_result = analyze_document(
+    # Use asyncio.to_thread to prevent the synchronous API call from blocking the event loop
+    ocr_result = await asyncio.to_thread(
+        analyze_document,
         client=di_client,
         file_path=document.file_path,
         model_id=config.azure_di_model,
