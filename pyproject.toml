@@ -39,6 +39,9 @@ dependencies = [
 
     # Environment variable loading
     "python-dotenv>=1.0",
+
+    # Web UI
+    "streamlit>=1.30",
 ]
 
 [project.optional-dependencies]
