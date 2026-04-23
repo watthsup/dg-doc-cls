@@ -33,10 +33,7 @@ async def process_batch(
     log.info("batch_started")
     start_time = time.monotonic()
 
-    # Shared across the batch (stateless — safe for concurrent use)
-    classifier = LLMClassifier(config)
-    di_client = create_di_client(config)
-
+    # Remove shared instances to prevent concurrent thread deadlocks in SDK connection pools
     semaphore = asyncio.Semaphore(config.max_concurrency)
     results: list[DocumentResult] = []
     errors: list[DocumentError] = []
@@ -44,8 +41,12 @@ async def process_batch(
     async def _process_one(doc: DocumentInput) -> DocumentResult | DocumentError:
         async with semaphore:
             try:
+                # Instantiate per-document so each gets its own thread-safe HTTP connection pool
+                doc_classifier = LLMClassifier(config)
+                doc_di_client = create_di_client(config)
+                
                 return await process_document(
-                    doc, classifier, config, di_client=di_client
+                    doc, doc_classifier, config, di_client=doc_di_client
                 )
             except Exception as e:
                 error_type = type(e).__name__
