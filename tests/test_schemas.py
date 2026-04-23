@@ -69,8 +69,8 @@ class TestSubcategory:
         assert Subcategory.FINANCIAL == "financial"
         assert Subcategory.OTHER == "other"
 
-    def test_six_subcategories(self) -> None:
-        assert len(list(Subcategory)) == 6
+    def test_all_subcategories_covered(self) -> None:
+        assert len(list(Subcategory)) == 12
 
     def test_parse_from_string(self) -> None:
         assert Subcategory("lab") == Subcategory.LAB
@@ -81,7 +81,17 @@ class TestValidSubcategories:
 
     def test_medical_subcategories(self) -> None:
         medical = VALID_SUBCATEGORIES[PrimaryClass.MEDICAL]
-        assert medical == {Subcategory.LAB, Subcategory.HEALTH_CHECK, Subcategory.MEDICAL_OTHER}
+        assert medical == {
+            Subcategory.LAB,
+            Subcategory.PATHOLOGY,
+            Subcategory.HEALTH_CHECK,
+            Subcategory.IMAGING_REPORTS,
+            Subcategory.ENCOUNTER_RECORDS,
+            Subcategory.PRESCRIPTIONS,
+            Subcategory.MEDICAL_CERTIFICATE,
+            Subcategory.DISCHARGE_SUMMARY,
+            Subcategory.MEDICAL_OTHER,
+        }
 
     def test_non_medical_subcategories(self) -> None:
         non_medical = VALID_SUBCATEGORIES[PrimaryClass.NON_MEDICAL]

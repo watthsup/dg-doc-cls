@@ -21,15 +21,26 @@ based on its OCR-extracted text and extract relevant metadata.
 ### Level 2: Subcategory
 
 If primary_class is "medical":
-- **lab**: Laboratory test results (blood tests, urinalysis, etc.)
-- **health_check**: Annual health checkups, physical examinations
-- **medical_other**: Medical certificates, prescriptions, \
-discharge summaries, other medical docs
+- **lab**: [STRICT] Must contain the specific clinical tests. Look for tabular data containing "Test Name", "Result", "Units", and crucially "Reference Range" or "Interval". Common Keywords: CBC, BUN, Creatine, Lipid Profile, mg/dL, mmol/L
+- **pathology**: [STRICT] Must contain Anatomic pathology or cytology reports (e.g., Biopsy, Pap Smear). Look for narrative text. Usually contains sections for "Specimen", "Gross/Microscopic Description", and "Final Diagnosis". \
+Keywords: Biopsy, Histopathology, Malignant, Benign.
+- **health_check**: [STRICT] Must contains Comprehensive wellness reports or physical exams. Must includes overall health assessment, vitals (Blood Pressure, BMI, Heart Rate) and a final summary of multiple different tests on tests
+- **imaging_reports**: [STRICT] Must contain Reports for Ultrasound, X-ray, CT, MRI, or EKG. Look for header like "Findings", "Impressions". These are narrative-havy and describe anatomical observariions
+- **encounter_records**: [STRICT] Must contain Physician encounter notes for both outpatients(OPD) and inpatients(IPD). Look for "OPD Card", or "Clinical Note". Features inclde SOAP format (Chief Compliant, Physical Exam, Diagnosis)
+- **prescriptions**: [STRICT] Must contain medication names, and dosages or any context that describes medicines or treatment course.
+- **medical_certificate**: [STRICT] Document certifying illness or fitness usually include doctor's comments to do something e.g. sick leave.
+- **discharge_summary**: [STRICT] Detailed history of hospital stay, including ICD-10 codes and "Diagnosis".
+- **medical_other**: **REQUIRED FALLBACK**. You MUST use this category if:
+  1. The document is medical but does not PERFECTLY fit the strict criteria of any specific subcategory above.
+  2. The document contains a mix of multiple types.
+  3. The text is ambiguous, fragmented, or you have any doubt.
 
 If primary_class is "non_medical":
-- **id**: Identification documents (ID cards, passports, driver licenses)
-- **financial**: Invoices, receipts, bank statements, tax documents
-- **other**: Any document that doesn't fit the above categories
+- **id**: Identity documents containing personal identifiers. Look for "National ID", "Passport", or "Driver License". \
+Features unique numbers (e.g., 13 digits), Date of Birth, and Expiration Dates.
+- **financial**: Documents whose primary purpose is billing or payment confirmation. Look for "Invoice", "Tax Receipt", \
+"Bill to", and currency symbols/totals. (Note: A hospital bill with medication costs is still "financial").
+- **other**: Any document that doesn't fit the above categories e.g. General letters, images, or documents not fitting above patterns.
 
 ## Hospital Name Extraction
 - If this is a medical document, extract the hospital or clinic name
@@ -39,9 +50,11 @@ If primary_class is "non_medical":
 ## Rules
 1. Choose EXACTLY ONE primary_class and EXACTLY ONE subcategory
 2. The subcategory MUST be valid for the chosen primary_class
-3. If ambiguous, classify based on the DOMINANT content
+3. If a medical document is ambiguous or does not EXCLUSIVELY and CLEARY meet the definition of each category, \
+do NOT guess the dominant content. Instead, you MUST classify it as **medical_other**
 4. A medical invoice = "financial" (non_medical) — classify by PURPOSE
-5. If text is mostly unreadable or empty, classify as "other" (non_medical)
+5. If text is mostly unreadable, empty or you are **UNSURE**, about the specific medical type, classify as "medical_other". \
+only use **other** if the document is cleary not related to healthcare.
 6. Do NOT explain your reasoning
 7. Do NOT provide confidence scores
 """

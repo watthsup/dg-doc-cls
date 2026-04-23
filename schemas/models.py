@@ -29,7 +29,13 @@ class Subcategory(StrEnum):
     """Level-2 classification: specific document type."""
 
     LAB = "lab"
+    PATHOLOGY = "pathology"
     HEALTH_CHECK = "health_check"
+    IMAGING_REPORTS = "imaging_reports"
+    ENCOUNTER_RECORDS = "encounter_records"
+    PRESCRIPTIONS = "prescriptions"
+    MEDICAL_CERTIFICATE = "medical_certificate"
+    DISCHARGE_SUMMARY = "discharge_summary"
     MEDICAL_OTHER = "medical_other"
     ID = "id"
     FINANCIAL = "financial"
@@ -39,7 +45,13 @@ class Subcategory(StrEnum):
 VALID_SUBCATEGORIES: dict[PrimaryClass, set[Subcategory]] = {
     PrimaryClass.MEDICAL: {
         Subcategory.LAB,
+        Subcategory.PATHOLOGY,
         Subcategory.HEALTH_CHECK,
+        Subcategory.IMAGING_REPORTS,
+        Subcategory.ENCOUNTER_RECORDS,
+        Subcategory.PRESCRIPTIONS,
+        Subcategory.MEDICAL_CERTIFICATE,
+        Subcategory.DISCHARGE_SUMMARY,
         Subcategory.MEDICAL_OTHER,
     },
     PrimaryClass.NON_MEDICAL: {
