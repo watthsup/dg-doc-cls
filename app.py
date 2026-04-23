@@ -114,6 +114,26 @@ if uploaded_file is not None:
             col_sig1.metric("OCR Confidence", f"{page.signals.ocr_confidence:.1%}")
             col_sig2.metric("Image Quality Score", f"{page.signals.quality_score:.1%}")
 
+            st.markdown("#### Image Quality Sub-Scores")
+            col_q1, col_q2, col_q3 = st.columns(3)
+            
+            blur = page.quality_assessment.blur_score
+            contrast = page.quality_assessment.contrast_score
+            skew = page.quality_assessment.skew_angle
+            
+            def get_color(val: float, thresh: float, is_skew: bool = False) -> str:
+                if is_skew:
+                    return "red" if abs(val) > thresh else "green"
+                return "red" if val < thresh else "green"
+                
+            blur_color = get_color(blur, 0.3)
+            contrast_color = get_color(contrast, 0.3)
+            skew_color = get_color(skew, 5.0, is_skew=True)
+            
+            col_q1.markdown(f"**Blur:** :{blur_color}[{blur:.2f}]")
+            col_q2.markdown(f"**Contrast:** :{contrast_color}[{contrast:.2f}]")
+            col_q3.markdown(f"**Skew:** :{skew_color}[{skew:.1f}°]")
+
             # Quality Issues Warnings
             if page.quality_assessment.issues:
                 st.markdown("### ⚠️ Quality Issues")
