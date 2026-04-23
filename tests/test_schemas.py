@@ -85,7 +85,7 @@ class TestValidSubcategories:
             Subcategory.LAB,
             Subcategory.HEALTH_CHECK,
             Subcategory.IMAGING_REPORT,
-            Subcategory.IPD_OPD_RECORD,
+            Subcategory.IPD_OPD_DOCUMENT,
             Subcategory.MEDICAL_CERTIFICATE,
             Subcategory.DISCHARGE_SUMMARY,
             Subcategory.MEDICAL_OTHER,

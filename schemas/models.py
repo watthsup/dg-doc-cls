@@ -31,7 +31,7 @@ class Subcategory(StrEnum):
     LAB = "lab"
     HEALTH_CHECK = "health_check"
     IMAGING_REPORT = "imaging_report"
-    IPD_OPD_RECORD = "ipd_opd_record"
+    IPD_OPD_DOCUMENT = "ipd_opd_document"
     MEDICAL_CERTIFICATE = "medical_certificate"
     DISCHARGE_SUMMARY = "discharge_summary"
     MEDICAL_OTHER = "medical_other"
@@ -45,7 +45,7 @@ VALID_SUBCATEGORIES: dict[PrimaryClass, set[Subcategory]] = {
         Subcategory.LAB,
         Subcategory.HEALTH_CHECK,
         Subcategory.IMAGING_REPORT,
-        Subcategory.IPD_OPD_RECORD,
+        Subcategory.IPD_OPD_DOCUMENT,
         Subcategory.MEDICAL_CERTIFICATE,
         Subcategory.DISCHARGE_SUMMARY,
         Subcategory.MEDICAL_OTHER,
