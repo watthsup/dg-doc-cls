@@ -83,9 +83,9 @@ class TestValidSubcategories:
         medical = VALID_SUBCATEGORIES[PrimaryClass.MEDICAL]
         assert medical == {
             Subcategory.LAB,
-            Subcategory.PATHOLOGY,
             Subcategory.HEALTH_CHECK,
-            Subcategory.IMAGING_REPORTS,
+            Subcategory.IMAGING_REPORT,
+            Subcategory.OPD_RECORDS,
             Subcategory.ENCOUNTER_RECORDS,
             Subcategory.PRESCRIPTIONS,
             Subcategory.MEDICAL_CERTIFICATE,
@@ -352,6 +352,7 @@ class TestQualityAssessment:
 
 _RESULT_JSON = """{
     "document_id": "report_abc123ef",
+    "file_name": "T123_456_U62400.pdf",
     "filename_doc_type": "U62400",
     "pages": [
         {
@@ -398,6 +399,7 @@ class TestDocumentResult:
         data = json.loads(result.model_dump_json())
         assert set(data.keys()) == {
             "document_id",
+            "file_name",
             "filename_doc_type",
             "pages",
             "processing_metadata",

@@ -155,6 +155,7 @@ async def process_document(
 
     result = DocumentResult(
         document_id=document.document_id,
+        file_name=document.file_path.name,
         filename_doc_type=filename_doc_type,
         pages=page_results,
         processing_metadata=ProcessingMetadata(

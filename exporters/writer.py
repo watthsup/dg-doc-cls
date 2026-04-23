@@ -19,16 +19,36 @@ def export_jsonl(results: list[DocumentResult], output_path: Path) -> Path:
 
 
 def export_csv(results: list[DocumentResult], output_path: Path) -> Path:
-    """Export results to flattened CSV format."""
+    """Export results to flattened CSV format (one row per page)."""
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     if not results:
         with open(output_path, "w", encoding="utf-8", newline="") as f:
-            csv.writer(f).writerow(["document_id"])
+            csv.writer(f).writerow(["document_id", "file_name"])
         return output_path
 
-    flat_rows = [_flatten_dict(r.model_dump()) for r in results]
-    fieldnames = list(flat_rows[0].keys())
+    flat_rows = []
+    for doc in results:
+        doc_dict = doc.model_dump()
+        pages = doc_dict.pop("pages", [])
+        doc_base = _flatten_dict(doc_dict)
+        
+        if not pages:
+            flat_rows.append(doc_base)
+        else:
+            for page in pages:
+                page_flat = _flatten_dict(page, parent_key="page")
+                row = {**doc_base, **page_flat}
+                flat_rows.append(row)
+
+    if not flat_rows:
+        return output_path
+
+    # Extract all unique fieldnames and sort them
+    fieldnames_set = set()
+    for row in flat_rows:
+        fieldnames_set.update(row.keys())
+    fieldnames = sorted(list(fieldnames_set))
 
     with open(output_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
