@@ -57,7 +57,10 @@ def route_after_specialist(state: GraphState) -> Literal["hitl_gateway", "__end_
 # ---------------------------------------------------------------------------
 
 
-def build_classification_graph(config: AppConfig) -> CompiledStateGraph:
+def build_classification_graph(
+    config: AppConfig, 
+    use_checkpointer: bool = True
+) -> CompiledStateGraph:
     """Build and compile the hierarchical classification LangGraph.
 
     Args:
@@ -112,12 +115,14 @@ def build_classification_graph(config: AppConfig) -> CompiledStateGraph:
     builder.add_edge("hitl_gateway", END)
 
     # --- Compile with checkpointer ---
-    checkpoint_path = Path(config.checkpoint_db_path)
-    checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
-
-    import sqlite3
-    conn = sqlite3.connect(str(checkpoint_path), check_same_thread=False)
-    checkpointer = SqliteSaver(conn)
+    if use_checkpointer:
+        checkpoint_path = Path(config.checkpoint_db_path)
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        import sqlite3
+        conn = sqlite3.connect(str(checkpoint_path), check_same_thread=False)
+        checkpointer = SqliteSaver(conn)
+    else:
+        checkpointer = None
 
     return builder.compile(
         checkpointer=checkpointer,
