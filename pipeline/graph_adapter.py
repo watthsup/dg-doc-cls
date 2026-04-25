@@ -15,7 +15,6 @@ from schemas.models import (
     ClassificationCode,
     ClassificationResult,
     DocumentResult,
-    LogprobAnalysis,
     PageResult,
     PrimaryClass,
     ProcessingMetadata,
