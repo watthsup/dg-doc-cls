@@ -27,8 +27,6 @@ from langchain_openai import AzureChatOpenAI
 from config.settings import AppConfig
 from graph.logprob_analyzer import analyze_logprobs
 from graph.prompts import (
-    HOSPITAL_EXTRACTION_SYSTEM,
-    HOSPITAL_EXTRACTION_USER,
     MED_SPECIALIST_SYSTEM,
     MED_SPECIALIST_USER,
     NONMED_SPECIALIST_SYSTEM,
@@ -211,12 +209,8 @@ async def root_router_node(state: GraphState) -> dict[str, Any]:
 
 async def med_specialist_node(state: GraphState) -> dict[str, Any]:
     """Sub-classify a medical document into its specific document type.
-
-    Runs two async operations concurrently:
-    - Sub-classification LLM call (logprob-enabled)
-    - Hospital name extraction (separate plain LLM call)
-
-    This parallelism saves ~50% of latency vs sequential calls.
+    
+    Logprob-enabled LLM call to classify LAB vs HCK vs OTH.
     """
     log = logger.bind(document_id=state.get("document_id", "unknown"))
     log.info("graph_med_specialist_start")
@@ -230,12 +224,10 @@ async def med_specialist_node(state: GraphState) -> dict[str, Any]:
         HumanMessage(content=MED_SPECIALIST_USER.format(ocr_text=ocr_text[:4000])),
     ]
 
-    # Run classification and hospital extraction concurrently
+    # Run classification
     llm = _create_llm(config, logprobs=True)
-    response, hospital_name = await asyncio.gather(
-        llm.ainvoke(messages),
-        _extract_hospital_name(ocr_text, config),
-    )
+    response = await llm.ainvoke(messages)
+    hospital_name = None
 
     raw_code = response.content.strip().upper()  # type: ignore[union-attr]
     analysis = analyze_logprobs(response.response_metadata, valid_tokens)
@@ -358,32 +350,3 @@ def hitl_gateway_node(state: GraphState) -> dict[str, Any]:
     }
 
 
-# ---------------------------------------------------------------------------
-# Private helper: Hospital name extraction
-# ---------------------------------------------------------------------------
-
-
-async def _extract_hospital_name(ocr_text: str, config: AppConfig) -> str | None:
-    """Extract hospital or clinic name from OCR text.
-
-    Uses a dedicated plain LLM call (no logprobs needed — free text output).
-    Extracted separately from classification to keep each node's responsibility
-    focused (SRP: classify vs. extract named entities).
-    """
-    if not ocr_text.strip():
-        return None
-
-    llm = _create_llm(config, logprobs=False)
-    messages = [
-        SystemMessage(content=HOSPITAL_EXTRACTION_SYSTEM),
-        HumanMessage(content=HOSPITAL_EXTRACTION_USER.format(ocr_text=ocr_text[:2000])),
-    ]
-
-    response = await llm.ainvoke(messages)
-    name = response.content.strip()  # type: ignore[union-attr]
-
-    _null_responses = frozenset({"null", "none", "n/a", "unknown", ""})
-    if not name or name.lower() in _null_responses:
-        return None
-
-    return name

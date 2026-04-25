@@ -126,21 +126,3 @@ Classify this non-medical document:
 """
 
 
-# ---------------------------------------------------------------------------
-# Hospital Name Extraction (separate structured call)
-# ---------------------------------------------------------------------------
-
-HOSPITAL_EXTRACTION_SYSTEM = """\
-Extract the hospital or clinic name from this medical document.
-Return ONLY the hospital name as a plain string.
-If no hospital name is found, return "null" (without quotes).
-Do NOT include any other text or explanation.
-"""
-
-HOSPITAL_EXTRACTION_USER = """\
-Extract hospital name:
-
----
-{ocr_text}
----
-"""
