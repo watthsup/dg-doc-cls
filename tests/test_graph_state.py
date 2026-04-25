@@ -24,20 +24,22 @@ class TestClassificationCode:
     """Test the 3-letter code enum."""
 
     def test_all_codes_exist(self) -> None:
-        """All 12 codes should be present."""
-        assert len(ClassificationCode) == 12
+        """2 root + 3 med-sub + 4 nonmed-sub = 9 codes."""
+        assert len(ClassificationCode) == 9
 
     def test_root_codes(self) -> None:
         assert ClassificationCode.MED == "MED"
         assert ClassificationCode.NON == "NON"
 
     def test_medical_sub_codes(self) -> None:
-        med_codes = {"LAB", "HCK", "IMG", "IPD", "MCE", "DIS", "MOT"}
+        """Medical scope: LAB, HCK, and MOT (fallback)."""
+        med_codes = {"LAB", "HCK", "MOT"}
         actual = {c.value for c in VALID_MED_SUB_CODES}
         assert actual == med_codes
 
     def test_nonmed_sub_codes(self) -> None:
-        nonmed_codes = {"ID_", "FIN", "OTH"}
+        """Non-medical scope: PAS, ID_, FIN, OTH (fallback)."""
+        nonmed_codes = {"PAS", "ID_", "FIN", "OTH"}
         actual = {c.value for c in VALID_NONMED_SUB_CODES}
         assert actual == nonmed_codes
 
@@ -58,6 +60,17 @@ class TestClassificationCode:
         """Every ClassificationCode should be in exactly one group."""
         all_grouped = VALID_ROOT_CODES | VALID_MED_SUB_CODES | VALID_NONMED_SUB_CODES
         assert all_grouped == set(ClassificationCode)
+
+    def test_both_paths_have_fallback(self) -> None:
+        """Both med and non-med must have an explicit OTHER code."""
+        assert ClassificationCode.MOT in VALID_MED_SUB_CODES
+        assert ClassificationCode.OTH in VALID_NONMED_SUB_CODES
+
+    def test_passport_separate_from_id(self) -> None:
+        """PAS and ID_ must be distinct codes in the non-med set."""
+        assert ClassificationCode.PAS in VALID_NONMED_SUB_CODES
+        assert ClassificationCode.ID_ in VALID_NONMED_SUB_CODES
+        assert ClassificationCode.PAS != ClassificationCode.ID_
 
 
 class TestCodeMappings:
@@ -86,11 +99,20 @@ class TestCodeMappings:
     def test_hck_maps_correctly(self) -> None:
         assert CODE_TO_SUBCATEGORY[ClassificationCode.HCK] == Subcategory.HEALTH_CHECK
 
-    def test_fin_maps_correctly(self) -> None:
-        assert CODE_TO_SUBCATEGORY[ClassificationCode.FIN] == Subcategory.FINANCIAL
+    def test_mot_maps_to_medical_other(self) -> None:
+        assert CODE_TO_SUBCATEGORY[ClassificationCode.MOT] == Subcategory.MEDICAL_OTHER
+
+    def test_pas_maps_to_passport(self) -> None:
+        assert CODE_TO_SUBCATEGORY[ClassificationCode.PAS] == Subcategory.PASSPORT
 
     def test_id_maps_correctly(self) -> None:
         assert CODE_TO_SUBCATEGORY[ClassificationCode.ID_] == Subcategory.ID
+
+    def test_fin_maps_correctly(self) -> None:
+        assert CODE_TO_SUBCATEGORY[ClassificationCode.FIN] == Subcategory.FINANCIAL
+
+    def test_oth_maps_to_other(self) -> None:
+        assert CODE_TO_SUBCATEGORY[ClassificationCode.OTH] == Subcategory.OTHER
 
     def test_med_maps_to_medical(self) -> None:
         assert CODE_TO_PRIMARY[ClassificationCode.MED] == PrimaryClass.MEDICAL

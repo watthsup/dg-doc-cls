@@ -70,7 +70,7 @@ class TestSubcategory:
         assert Subcategory.OTHER == "other"
 
     def test_all_subcategories_covered(self) -> None:
-        assert len(list(Subcategory)) == 10
+        assert len(list(Subcategory)) == 11  # +1: PASSPORT added
 
     def test_parse_from_string(self) -> None:
         assert Subcategory("lab") == Subcategory.LAB
@@ -93,7 +93,12 @@ class TestValidSubcategories:
 
     def test_non_medical_subcategories(self) -> None:
         non_medical = VALID_SUBCATEGORIES[PrimaryClass.NON_MEDICAL]
-        assert non_medical == {Subcategory.ID, Subcategory.FINANCIAL, Subcategory.OTHER}
+        assert non_medical == {
+            Subcategory.PASSPORT,
+            Subcategory.ID,
+            Subcategory.FINANCIAL,
+            Subcategory.OTHER,
+        }
 
     def test_no_overlap_between_classes(self) -> None:
         assert VALID_SUBCATEGORIES[PrimaryClass.MEDICAL].isdisjoint(

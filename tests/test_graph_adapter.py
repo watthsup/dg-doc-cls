@@ -30,6 +30,20 @@ class TestGraphStateToPageResult:
         assert result.classification.hospital_name == "Test Hospital"
         assert result.ocr_text == "CBC results..."
 
+    def test_nonmedical_passport_conversion(self) -> None:
+        state = {
+            "root_code": "NON",
+            "sub_code": "PAS",
+            "root_confidence_pct": 98.0,
+            "sub_confidence_pct": 95.0,
+            "hospital_name": None,
+            "azure_ocr_text": "PASSPORT Republic of Thailand...",
+        }
+        result = graph_state_to_page_result(state)
+        assert result.classification.primary_class == PrimaryClass.NON_MEDICAL
+        assert result.classification.subcategory == Subcategory.PASSPORT
+        assert result.classification.hospital_name is None
+
     def test_nonmedical_financial_conversion(self) -> None:
         state = {
             "root_code": "NON",
@@ -42,7 +56,6 @@ class TestGraphStateToPageResult:
         result = graph_state_to_page_result(state)
         assert result.classification.primary_class == PrimaryClass.NON_MEDICAL
         assert result.classification.subcategory == Subcategory.FINANCIAL
-        assert result.classification.hospital_name is None
 
     def test_invalid_code_falls_back(self) -> None:
         state = {
@@ -130,20 +143,20 @@ class TestGraphStateToDocumentResult:
         state = {
             "document_id": "compat_test",
             "root_code": "NON",
-            "sub_code": "ID_",
+            "sub_code": "PAS",
             "root_confidence_pct": 95.0,
             "sub_confidence_pct": 92.0,
             "hospital_name": None,
-            "azure_ocr_text": "National ID...",
+            "azure_ocr_text": "PASSPORT P<THA...",
         }
-        result = graph_state_to_document_result(state, file_name="id.jpg")
+        result = graph_state_to_document_result(state, file_name="passport.jpg")
 
-        # Should be serializable
         json_str = result.model_dump_json()
         data = json.loads(json_str)
         assert "document_id" in data
         assert "pages" in data
         assert data["pages"][0]["classification"]["primary_class"] == "non_medical"
+        assert data["pages"][0]["classification"]["subcategory"] == "passport"
 
 
 class TestBuildLogprobSummary:

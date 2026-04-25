@@ -28,6 +28,7 @@ class PrimaryClass(StrEnum):
 class Subcategory(StrEnum):
     """Level-2 classification: specific document type."""
 
+    # Medical
     LAB = "lab"
     HEALTH_CHECK = "health_check"
     IMAGING_REPORT = "imaging_report"
@@ -35,6 +36,8 @@ class Subcategory(StrEnum):
     MEDICAL_CERTIFICATE = "medical_certificate"
     DISCHARGE_SUMMARY = "discharge_summary"
     MEDICAL_OTHER = "medical_other"
+    # Non-medical
+    PASSPORT = "passport"
     ID = "id"
     FINANCIAL = "financial"
     OTHER = "other"
@@ -51,6 +54,7 @@ VALID_SUBCATEGORIES: dict[PrimaryClass, set[Subcategory]] = {
         Subcategory.MEDICAL_OTHER,
     },
     PrimaryClass.NON_MEDICAL: {
+        Subcategory.PASSPORT,
         Subcategory.ID,
         Subcategory.FINANCIAL,
         Subcategory.OTHER,
@@ -59,23 +63,26 @@ VALID_SUBCATEGORIES: dict[PrimaryClass, set[Subcategory]] = {
 
 
 class ClassificationCode(StrEnum):
-    """3-letter codes for single-token logprob optimization (FR-07)."""
+    """3-letter codes for single-token logprob optimization (FR-07).
+
+    Medical sub-codes: scoped to LAB & HCK only — the two highest-volume
+    categories for AIA's use case.  MOT is the explicit fallback.
+    Non-medical: PAS (Passport) is separate from ID_ (National ID) because
+    they have distinct key fields and business rules downstream.
+    """
 
     # Root-level
     MED = "MED"
     NON = "NON"
-    # Medical sub-codes
+    # Medical sub-codes (v2: focused scope)
     LAB = "LAB"
     HCK = "HCK"
-    IMG = "IMG"
-    IPD = "IPD"
-    MCE = "MCE"
-    DIS = "DIS"
-    MOT = "MOT"
+    MOT = "MOT"  # Medical Other — catch-all fallback
     # Non-medical sub-codes
-    ID_ = "ID_"
-    FIN = "FIN"
-    OTH = "OTH"
+    PAS = "PAS"  # Passport (international travel document)
+    ID_ = "ID_"  # National ID / driver's licence
+    FIN = "FIN"  # Financial document
+    OTH = "OTH"  # Non-medical Other — catch-all fallback
 
 
 # --- Bidirectional mappings: 3-letter code ↔ existing enums ---
@@ -86,13 +93,12 @@ CODE_TO_PRIMARY: dict[ClassificationCode, PrimaryClass] = {
 }
 
 CODE_TO_SUBCATEGORY: dict[ClassificationCode, Subcategory] = {
+    # Medical
     ClassificationCode.LAB: Subcategory.LAB,
     ClassificationCode.HCK: Subcategory.HEALTH_CHECK,
-    ClassificationCode.IMG: Subcategory.IMAGING_REPORT,
-    ClassificationCode.IPD: Subcategory.IPD_OPD_DOCUMENT,
-    ClassificationCode.MCE: Subcategory.MEDICAL_CERTIFICATE,
-    ClassificationCode.DIS: Subcategory.DISCHARGE_SUMMARY,
     ClassificationCode.MOT: Subcategory.MEDICAL_OTHER,
+    # Non-medical
+    ClassificationCode.PAS: Subcategory.PASSPORT,
     ClassificationCode.ID_: Subcategory.ID,
     ClassificationCode.FIN: Subcategory.FINANCIAL,
     ClassificationCode.OTH: Subcategory.OTHER,
@@ -111,12 +117,15 @@ VALID_ROOT_CODES: set[ClassificationCode] = {
     ClassificationCode.MED, ClassificationCode.NON,
 }
 VALID_MED_SUB_CODES: set[ClassificationCode] = {
-    ClassificationCode.LAB, ClassificationCode.HCK, ClassificationCode.IMG,
-    ClassificationCode.IPD, ClassificationCode.MCE, ClassificationCode.DIS,
-    ClassificationCode.MOT,
+    ClassificationCode.LAB,
+    ClassificationCode.HCK,
+    ClassificationCode.MOT,  # Medical Other fallback — always present
 }
 VALID_NONMED_SUB_CODES: set[ClassificationCode] = {
-    ClassificationCode.ID_, ClassificationCode.FIN, ClassificationCode.OTH,
+    ClassificationCode.PAS,
+    ClassificationCode.ID_,
+    ClassificationCode.FIN,
+    ClassificationCode.OTH,  # Non-medical Other fallback — always present
 }
 
 
