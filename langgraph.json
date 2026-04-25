@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "classifier": "./graph/studio.py:graph"
+  },
+  "env": ".env"
+}
