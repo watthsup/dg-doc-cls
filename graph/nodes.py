@@ -242,9 +242,9 @@ async def med_specialist_node(state: GraphState) -> dict[str, Any]:
 
     sub_code = raw_code if raw_code in valid_tokens else analysis.top1_token
     if sub_code not in valid_tokens:
-        sub_code = "MOT"  # Medical other — explicit fallback
+        sub_code = "OTH"  # Explicit fallback to shared OTH
 
-    is_uncertain = analysis.margin_score < config.margin_threshold
+    is_uncertain = (analysis.margin_score < config.margin_threshold) or (sub_code == "OTH")
 
     log.info(
         "graph_med_specialist_complete",
@@ -300,9 +300,9 @@ async def nonmed_specialist_node(state: GraphState) -> dict[str, Any]:
 
     sub_code = raw_code if raw_code in valid_tokens else analysis.top1_token
     if sub_code not in valid_tokens:
-        sub_code = "OTH"  # Non-medical other — explicit fallback
+        sub_code = "OTH"  # Explicit fallback to shared OTH
 
-    is_uncertain = analysis.margin_score < config.margin_threshold
+    is_uncertain = (analysis.margin_score < config.margin_threshold) or (sub_code == "OTH")
 
     log.info(
         "graph_nonmed_specialist_complete",

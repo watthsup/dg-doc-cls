@@ -57,6 +57,28 @@ class TestGraphStateToPageResult:
         assert result.classification.primary_class == PrimaryClass.NON_MEDICAL
         assert result.classification.subcategory == Subcategory.FINANCIAL
 
+    def test_oth_maps_contextually_for_medical(self) -> None:
+        state = {
+            "root_code": "MED",
+            "sub_code": "OTH",
+            "root_confidence_pct": 50.0,
+            "sub_confidence_pct": 50.0,
+        }
+        result = graph_state_to_page_result(state)
+        assert result.classification.primary_class == PrimaryClass.MEDICAL
+        assert result.classification.subcategory == Subcategory.MEDICAL_OTHER
+
+    def test_oth_maps_contextually_for_nonmedical(self) -> None:
+        state = {
+            "root_code": "NON",
+            "sub_code": "OTH",
+            "root_confidence_pct": 50.0,
+            "sub_confidence_pct": 50.0,
+        }
+        result = graph_state_to_page_result(state)
+        assert result.classification.primary_class == PrimaryClass.NON_MEDICAL
+        assert result.classification.subcategory == Subcategory.OTHER
+
     def test_invalid_code_falls_back(self) -> None:
         state = {
             "root_code": "XXX",

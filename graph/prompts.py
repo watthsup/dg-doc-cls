@@ -51,10 +51,9 @@ Keywords: CBC, BUN, Creatinine, Lipid Profile, Glucose, mg/dL, mmol/L, x10^3/uL.
 with vitals (Blood Pressure, BMI, Heart Rate), multiple test summaries, \
 and a doctor's overall health assessment. Often titled "Annual Health Checkup" \
 or "Executive Health Screening".
-- **MOT** — Medical Other. REQUIRED FALLBACK. Use for any medical document \
-that does not clearly match LAB or HCK: prescriptions, discharge notes, \
-clinic receipts, imaging reports, OPD notes, certificates, or any fragmented \
-medical text.
+- **OTH** — Use this code ONLY when you are not confident the document is \
+LAB or HCK, or when the document does not clearly match either category. \
+Do NOT list specific types here — treat OTH as a signal of uncertainty.
 
 ## Few-Shot Examples
 
@@ -62,15 +61,11 @@ Document with "WBC 5.2 x10^3/uL", "Reference Range: 4.5-11.0", table format → 
 Document with "CBC", "Liver Function Test", result table → LAB
 Document with "Annual Health Checkup", "BMI: 22.3", "Spirometry: Normal" → HCK
 Document with "Executive Health Screening", "Blood Pressure: 120/80" → HCK
-Document with "MRI Brain", "Findings: No acute abnormality" → MOT
-Document with "Medical Certificate", "fit to return to work" → MOT
-Document with "OPD Card", "Chief Complaint" → MOT
-Document with "Discharge Summary", "ICD-10" → MOT
 
 ## Rules
-1. Output EXACTLY one 3-letter code: LAB, HCK, or MOT
+1. Output EXACTLY one 3-letter code: LAB, HCK, or OTH
 2. Do NOT output any other text, explanation, or punctuation
-3. When uncertain, output MOT
+3. Use OTH when you are not sure or the document does not clearly fit LAB or HCK
 """
 
 MED_SPECIALIST_USER = """\
@@ -100,9 +95,9 @@ document. Key indicators: 13-digit Thai national ID number, "บัตรปร�
 - **FIN** — Financial document. Invoices, tax receipts, bills, payment confirmations, \
 bank statements. Contains currency symbols, totals, "Bill to", "Invoice No.", or \
 "VAT". Note: A hospital bill is still FIN — classify by financial purpose, not origin.
-- **OTH** — Other. REQUIRED FALLBACK. Any non-medical document that does not \
-clearly match PAS, ID_, or FIN: general letters, forms, blank pages, or \
-unrecognizable documents.
+- **OTH** — Use this code ONLY when you are not confident the document is \
+PAS, ID_, or FIN, or when the document does not clearly match any of those \
+categories. Do NOT list specific types here — treat OTH as a signal of uncertainty.
 
 ## Few-Shot Examples
 
@@ -119,7 +114,7 @@ Document with "Hospital Bill", "Total Amount Due" → FIN
 1. Output EXACTLY one 3-letter code: PAS, ID_, FIN, or OTH
 2. Do NOT output any other text, explanation, or punctuation
 3. KEY DISTINCTION: PAS = international passport booklet; ID_ = domestic card/licence
-4. When uncertain, output OTH
+4. Use OTH when you are not sure or the document does not clearly fit any category above
 """
 
 NONMED_SPECIALIST_USER = """\

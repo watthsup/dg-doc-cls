@@ -35,7 +35,7 @@ def graph_state_to_page_result(
     Maps 3-letter codes back to the existing PrimaryClass/Subcategory enums.
     """
     root_code = state.get("root_code", "MED")
-    sub_code = state.get("sub_code", "MOT")
+    sub_code = state.get("sub_code", "OTH")
 
     # Map codes to enums (with safe fallbacks)
     try:
@@ -44,7 +44,10 @@ def graph_state_to_page_result(
         primary = PrimaryClass.MEDICAL
 
     try:
-        subcategory = CODE_TO_SUBCATEGORY[ClassificationCode(sub_code)]
+        if sub_code == "OTH":
+            subcategory = Subcategory.MEDICAL_OTHER if primary == PrimaryClass.MEDICAL else Subcategory.OTHER
+        else:
+            subcategory = CODE_TO_SUBCATEGORY[ClassificationCode(sub_code)]
     except (ValueError, KeyError):
         subcategory = Subcategory.MEDICAL_OTHER if primary == PrimaryClass.MEDICAL else Subcategory.OTHER
 

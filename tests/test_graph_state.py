@@ -24,16 +24,16 @@ class TestClassificationCode:
     """Test the 3-letter code enum."""
 
     def test_all_codes_exist(self) -> None:
-        """2 root + 3 med-sub + 4 nonmed-sub = 9 codes."""
-        assert len(ClassificationCode) == 9
+        """2 root + 2 med-sub + 3 nonmed-sub + 1 shared = 8 codes."""
+        assert len(ClassificationCode) == 8
 
     def test_root_codes(self) -> None:
         assert ClassificationCode.MED == "MED"
         assert ClassificationCode.NON == "NON"
 
     def test_medical_sub_codes(self) -> None:
-        """Medical scope: LAB, HCK, and MOT (fallback)."""
-        med_codes = {"LAB", "HCK", "MOT"}
+        """Medical scope: LAB, HCK, and OTH (shared fallback)."""
+        med_codes = {"LAB", "HCK", "OTH"}
         actual = {c.value for c in VALID_MED_SUB_CODES}
         assert actual == med_codes
 
@@ -47,23 +47,24 @@ class TestClassificationCode:
         assert VALID_ROOT_CODES == {ClassificationCode.MED, ClassificationCode.NON}
 
     def test_no_overlap_between_groups(self) -> None:
-        """Root, med-sub, and nonmed-sub must not overlap."""
+        """Root, med-sub, and nonmed-sub must not overlap, EXCEPT for shared OTH."""
         root_vals = {c.value for c in VALID_ROOT_CODES}
         med_vals = {c.value for c in VALID_MED_SUB_CODES}
         nonmed_vals = {c.value for c in VALID_NONMED_SUB_CODES}
 
         assert root_vals.isdisjoint(med_vals)
         assert root_vals.isdisjoint(nonmed_vals)
-        assert med_vals.isdisjoint(nonmed_vals)
+        # Only OTH is shared between med and non-med sub-codes
+        assert med_vals.intersection(nonmed_vals) == {"OTH"}
 
     def test_all_codes_covered(self) -> None:
-        """Every ClassificationCode should be in exactly one group."""
+        """Every ClassificationCode should be in exactly one group (or shared)."""
         all_grouped = VALID_ROOT_CODES | VALID_MED_SUB_CODES | VALID_NONMED_SUB_CODES
         assert all_grouped == set(ClassificationCode)
 
     def test_both_paths_have_fallback(self) -> None:
-        """Both med and non-med must have an explicit OTHER code."""
-        assert ClassificationCode.MOT in VALID_MED_SUB_CODES
+        """Both med and non-med must share the explicit OTHER code."""
+        assert ClassificationCode.OTH in VALID_MED_SUB_CODES
         assert ClassificationCode.OTH in VALID_NONMED_SUB_CODES
 
     def test_passport_separate_from_id(self) -> None:
@@ -80,6 +81,8 @@ class TestCodeMappings:
         assert set(CODE_TO_PRIMARY.keys()) == VALID_ROOT_CODES
 
     def test_code_to_subcategory_covers_sub_codes(self) -> None:
+        # Note: OTH is contextually mapped in the adapter, but CODE_TO_SUBCATEGORY
+        # has a default mapping for it.
         expected = VALID_MED_SUB_CODES | VALID_NONMED_SUB_CODES
         assert set(CODE_TO_SUBCATEGORY.keys()) == expected
 
@@ -99,8 +102,8 @@ class TestCodeMappings:
     def test_hck_maps_correctly(self) -> None:
         assert CODE_TO_SUBCATEGORY[ClassificationCode.HCK] == Subcategory.HEALTH_CHECK
 
-    def test_mot_maps_to_medical_other(self) -> None:
-        assert CODE_TO_SUBCATEGORY[ClassificationCode.MOT] == Subcategory.MEDICAL_OTHER
+    def test_oth_maps_to_other_by_default(self) -> None:
+        assert CODE_TO_SUBCATEGORY[ClassificationCode.OTH] == Subcategory.OTHER
 
     def test_pas_maps_to_passport(self) -> None:
         assert CODE_TO_SUBCATEGORY[ClassificationCode.PAS] == Subcategory.PASSPORT
