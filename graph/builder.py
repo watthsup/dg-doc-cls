@@ -115,7 +115,9 @@ def build_classification_graph(config: AppConfig) -> CompiledStateGraph:
     checkpoint_path = Path(config.checkpoint_db_path)
     checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
 
-    checkpointer = SqliteSaver.from_conn_string(str(checkpoint_path))
+    import sqlite3
+    conn = sqlite3.connect(str(checkpoint_path), check_same_thread=False)
+    checkpointer = SqliteSaver(conn)
 
     return builder.compile(
         checkpointer=checkpointer,
