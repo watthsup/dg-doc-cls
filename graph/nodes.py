@@ -110,6 +110,16 @@ async def ocr_ingestion_node(state: GraphState) -> dict[str, Any]:
     This allows other concurrent graph executions to proceed.
     """
     log = logger.bind(document_id=state.get("document_id", "unknown"))
+
+    # Fast path: Skip OCR if text is already provided (e.g., LangGraph Studio testing)
+    if state.get("azure_ocr_text", "").strip():
+        log.info("graph_ocr_ingestion_skipped", reason="text_already_provided")
+        return {
+            "ocr_confidence": state.get("ocr_confidence", 1.0),
+            "ocr_metadata": state.get("ocr_metadata", {"pages": 1, "overall_confidence": 1.0}),
+            "execution_trail": state.get("execution_trail", []) + ["ocr_ingestion (skipped)"],
+        }
+
     log.info("graph_ocr_ingestion_start")
 
     config = _load_config()
