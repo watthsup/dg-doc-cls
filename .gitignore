@@ -40,3 +40,4 @@ logs/
 results.jsonl
 results.csv
 errors.jsonl
+checkpoints/

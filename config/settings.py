@@ -103,6 +103,23 @@ class AppConfig(BaseSettings):
         description="Documents below this are flagged for review",
     )
 
+    # --- LangGraph HITL ---
+    margin_threshold: float = Field(
+        default=1.5,
+        ge=0.0,
+        description="Logprob margin below this triggers HITL interrupt",
+    )
+    checkpoint_db_path: str = Field(
+        default="./checkpoints/doc_cls.db",
+        description="SQLite checkpoint database path for LangGraph state persistence",
+    )
+    logprobs_top_n: int = Field(
+        default=3,
+        ge=1,
+        le=5,
+        description="Number of top logprobs to capture from LLM",
+    )
+
     # --- Logging ---
     log_format: LogFormat = Field(default=LogFormat.CONSOLE)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(default="INFO")

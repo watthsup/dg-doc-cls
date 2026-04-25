@@ -26,6 +26,11 @@ dependencies = [
     "langchain-core>=0.3",
     "langchain-openai>=0.3",
 
+    # LangGraph — stateful classification pipeline with HITL
+    "langgraph>=0.4",
+    "langgraph-checkpoint-sqlite>=2.0",
+    "aiosqlite>=0.20",
+
     # Structured logging
     "structlog>=24.1",
 
@@ -55,7 +60,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["config*", "schemas*", "ocr*", "classifier*", "confidence*", "pipeline*", "exporters*"]
+include = ["config*", "schemas*", "ocr*", "classifier*", "confidence*", "pipeline*", "exporters*", "graph*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -56,6 +56,86 @@ VALID_SUBCATEGORIES: dict[PrimaryClass, set[Subcategory]] = {
         Subcategory.OTHER,
     },
 }
+
+
+class ClassificationCode(StrEnum):
+    """3-letter codes for single-token logprob optimization (FR-07)."""
+
+    # Root-level
+    MED = "MED"
+    NON = "NON"
+    # Medical sub-codes
+    LAB = "LAB"
+    HCK = "HCK"
+    IMG = "IMG"
+    IPD = "IPD"
+    MCE = "MCE"
+    DIS = "DIS"
+    MOT = "MOT"
+    # Non-medical sub-codes
+    ID_ = "ID_"
+    FIN = "FIN"
+    OTH = "OTH"
+
+
+# --- Bidirectional mappings: 3-letter code ↔ existing enums ---
+
+CODE_TO_PRIMARY: dict[ClassificationCode, PrimaryClass] = {
+    ClassificationCode.MED: PrimaryClass.MEDICAL,
+    ClassificationCode.NON: PrimaryClass.NON_MEDICAL,
+}
+
+CODE_TO_SUBCATEGORY: dict[ClassificationCode, Subcategory] = {
+    ClassificationCode.LAB: Subcategory.LAB,
+    ClassificationCode.HCK: Subcategory.HEALTH_CHECK,
+    ClassificationCode.IMG: Subcategory.IMAGING_REPORT,
+    ClassificationCode.IPD: Subcategory.IPD_OPD_DOCUMENT,
+    ClassificationCode.MCE: Subcategory.MEDICAL_CERTIFICATE,
+    ClassificationCode.DIS: Subcategory.DISCHARGE_SUMMARY,
+    ClassificationCode.MOT: Subcategory.MEDICAL_OTHER,
+    ClassificationCode.ID_: Subcategory.ID,
+    ClassificationCode.FIN: Subcategory.FINANCIAL,
+    ClassificationCode.OTH: Subcategory.OTHER,
+}
+
+SUBCATEGORY_TO_CODE: dict[Subcategory, ClassificationCode] = {
+    v: k for k, v in CODE_TO_SUBCATEGORY.items()
+}
+
+PRIMARY_TO_CODE: dict[PrimaryClass, ClassificationCode] = {
+    v: k for k, v in CODE_TO_PRIMARY.items()
+}
+
+# Valid sub-codes grouped by root code
+VALID_ROOT_CODES: set[ClassificationCode] = {
+    ClassificationCode.MED, ClassificationCode.NON,
+}
+VALID_MED_SUB_CODES: set[ClassificationCode] = {
+    ClassificationCode.LAB, ClassificationCode.HCK, ClassificationCode.IMG,
+    ClassificationCode.IPD, ClassificationCode.MCE, ClassificationCode.DIS,
+    ClassificationCode.MOT,
+}
+VALID_NONMED_SUB_CODES: set[ClassificationCode] = {
+    ClassificationCode.ID_, ClassificationCode.FIN, ClassificationCode.OTH,
+}
+
+
+class LogprobAnalysis(BaseModel):
+    """Statistical reliability data from a single classification node."""
+
+    top1_token: str = Field(description="Highest probability token")
+    top1_logprob: float = Field(description="ln(p) of top token")
+    top2_token: str = Field(description="Runner-up token")
+    top2_logprob: float = Field(description="ln(p) of runner-up token")
+    margin_score: float = Field(
+        description="Confidence delta: top1_logprob - top2_logprob",
+    )
+    confidence_pct: float = Field(
+        ge=0.0, le=100.0,
+        description="exp(top1_logprob) * 100",
+    )
+
+
 
 
 # ---------------------------------------------------------------------------
