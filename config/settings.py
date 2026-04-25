@@ -120,6 +120,11 @@ class AppConfig(BaseSettings):
         description="Number of top logprobs to capture from LLM",
     )
 
+    # --- LangSmith Tracing ---
+    langsmith_api_key: SecretStr | None = Field(default=None)
+    langsmith_tracing: bool = Field(default=False)
+    langsmith_project: str = Field(default="docguru-cls")
+
     # --- Logging ---
     log_format: LogFormat = Field(default=LogFormat.CONSOLE)
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(default="INFO")
