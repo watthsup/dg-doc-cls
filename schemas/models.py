@@ -131,6 +131,14 @@ VALID_NONMED_SUB_CODES: set[ClassificationCode] = {
 }
 
 
+class LogprobCandidate(BaseModel):
+    """A single potential classification token with its statistical weight."""
+
+    token: str
+    logprob: float
+    confidence_pct: float
+
+
 class LogprobAnalysis(BaseModel):
     """Statistical reliability data from a single classification node."""
 
@@ -144,6 +152,10 @@ class LogprobAnalysis(BaseModel):
     confidence_pct: float = Field(
         ge=0.0, le=100.0,
         description="exp(top1_logprob) * 100",
+    )
+    candidates: list[LogprobCandidate] = Field(
+        default_factory=list,
+        description="List of all valid classification tokens considered",
     )
 
 

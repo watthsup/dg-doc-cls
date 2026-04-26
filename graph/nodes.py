@@ -221,12 +221,7 @@ async def root_router_node(state: GraphState) -> dict[str, Any]:
 
     return {
         "root_code": root_code,
-        "root_logprobs": {
-            "top1_token": analysis.top1_token,
-            "top1_logprob": analysis.top1_logprob,
-            "top2_token": analysis.top2_token,
-            "top2_logprob": analysis.top2_logprob,
-        },
+        "root_logprobs": analysis.model_dump(),
         "root_margin": analysis.margin_score,
         "root_confidence_pct": analysis.confidence_pct,
         "is_uncertain": is_uncertain,
@@ -281,12 +276,7 @@ async def med_specialist_node(state: GraphState) -> dict[str, Any]:
 
     return {
         "sub_code": sub_code,
-        "sub_logprobs": {
-            "top1_token": analysis.top1_token,
-            "top1_logprob": analysis.top1_logprob,
-            "top2_token": analysis.top2_token,
-            "top2_logprob": analysis.top2_logprob,
-        },
+        "sub_logprobs": analysis.model_dump(),
         "sub_margin": analysis.margin_score,
         "sub_confidence_pct": analysis.confidence_pct,
         # Preserve root-level uncertainty — once uncertain, stays uncertain
@@ -337,12 +327,7 @@ async def nonmed_specialist_node(state: GraphState) -> dict[str, Any]:
 
     return {
         "sub_code": sub_code,
-        "sub_logprobs": {
-            "top1_token": analysis.top1_token,
-            "top1_logprob": analysis.top1_logprob,
-            "top2_token": analysis.top2_token,
-            "top2_logprob": analysis.top2_logprob,
-        },
+        "sub_logprobs": analysis.model_dump(),
         "sub_margin": analysis.margin_score,
         "sub_confidence_pct": analysis.confidence_pct,
         "is_uncertain": is_uncertain or state.get("is_uncertain", False),

@@ -46,6 +46,7 @@ def analyze_logprobs(
             top2_logprob=-100.0,
             margin_score=0.0,
             confidence_pct=0.0,
+            candidates=[],
         )
 
     # Use the first token's logprob data (since we expect single-token output)
@@ -74,13 +75,18 @@ def analyze_logprobs(
     valid_entries.sort(key=lambda x: x.get("logprob", -100.0), reverse=True)
 
     if not valid_entries:
+        lp = generated_logprob
+        conf = min(100.0, math.exp(lp) * 100) if lp > -50 else 0.0
+        token = generated_token or "UNK"
+        
         return LogprobAnalysis(
-            top1_token=generated_token or "UNK",
-            top1_logprob=generated_logprob,
+            top1_token=token,
+            top1_logprob=lp,
             top2_token="UNK",
             top2_logprob=-100.0,
-            margin_score=abs(generated_logprob) if generated_logprob != -100.0 else 0.0,
-            confidence_pct=min(100.0, math.exp(generated_logprob) * 100) if generated_logprob > -50 else 0.0,
+            margin_score=abs(lp) if lp != -100.0 else 0.0,
+            confidence_pct=conf,
+            candidates=[LogprobCandidate(token=token, logprob=lp, confidence_pct=conf)],
         )
 
     top1 = valid_entries[0]
@@ -99,6 +105,18 @@ def analyze_logprobs(
     margin = top1_logprob - top2_logprob
     confidence_pct = min(100.0, math.exp(top1_logprob) * 100)
 
+    # Build candidates list
+    candidates = []
+    for entry in valid_entries:
+        lp = entry.get("logprob", -100.0)
+        candidates.append(
+            LogprobCandidate(
+                token=entry.get("token", "UNK").strip().upper(),
+                logprob=lp,
+                confidence_pct=min(100.0, math.exp(lp) * 100) if lp > -50 else 0.0,
+            )
+        )
+
     return LogprobAnalysis(
         top1_token=top1_token,
         top1_logprob=top1_logprob,
@@ -106,4 +124,5 @@ def analyze_logprobs(
         top2_logprob=top2_logprob,
         margin_score=margin,
         confidence_pct=confidence_pct,
+        candidates=candidates,
     )
