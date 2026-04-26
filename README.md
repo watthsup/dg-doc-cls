@@ -25,18 +25,18 @@ An enterprise-grade document sorting gateway that classifies high-volume incomin
 Root
 ├── MED (Medical)
 │   ├── LAB  — Lab test results (CBC, LFT, Lipid, etc.)
-│   ├── HCK  — Health check / wellness / executive screening
+│   ├── CHK  — Health check / wellness / executive screening
 │   └── OTH  — Medical Other (imaging, OPD notes, certs, etc.) ← fallback
 │
 └── NON (Non-Medical)
-    ├── PAS  — Passport (international travel document, MRZ)
-    ├── ID_  — National ID card / driver's licence
+    ├── PS  — Passport (international travel document, MRZ)
+    ├── ID  — National ID card / driver's licence
     ├── FIN  — Financial (invoice, receipt, bank statement, hospital bill)
     └── OTH  — Other ← fallback
 ```
 
 > **Scope note:** Medical sub-classification focuses on the two highest-volume categories
-> (LAB & HCK). All other medical documents fall to OTH for downstream specialist handling.
+> (LAB & CHK). All other medical documents fall to OTH for downstream specialist handling.
 > Passport is explicitly separated from National ID because they have distinct key fields
 > and different downstream business rules.
 

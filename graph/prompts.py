@@ -47,25 +47,25 @@ classified as MEDICAL. Your task is to determine the specific document type.
 - **LAB** — Laboratory test results. Contains tabular test data with columns \
 for Test Name, Result, Units, and Reference Range. \
 Keywords: CBC, BUN, Creatinine, Lipid Profile, Glucose, mg/dL, mmol/L, x10^3/uL.
-- **HCK** — Health check / wellness report. Comprehensive physical examination \
+- **CHK** — Health check / wellness report. Comprehensive physical examination \
 with vitals (Blood Pressure, BMI, Heart Rate), multiple test summaries, \
 and a doctor's overall health assessment. Often titled "Annual Health Checkup" \
 or "Executive Health Screening".
 - **OTH** — Use this code ONLY when you are not confident the document is \
-LAB or HCK, or when the document does not clearly match either category. \
+LAB or CHK, or when the document does not clearly match either category. \
 Do NOT list specific types here — treat OTH as a signal of uncertainty.
 
 ## Few-Shot Examples
 
 Document with "WBC 5.2 x10^3/uL", "Reference Range: 4.5-11.0", table format → LAB
 Document with "CBC", "Liver Function Test", result table → LAB
-Document with "Annual Health Checkup", "BMI: 22.3", "Spirometry: Normal" → HCK
-Document with "Executive Health Screening", "Blood Pressure: 120/80" → HCK
+Document with "Annual Health Checkup", "BMI: 22.3", "Spirometry: Normal" → CHK
+Document with "Executive Health Screening", "Blood Pressure: 120/80" → CHK
 
 ## Rules
-1. Output EXACTLY one 3-letter code: LAB, HCK, or OTH
+1. Output EXACTLY one 3-letter code: LAB, CHK, or OTH
 2. Do NOT output any other text, explanation, or punctuation
-3. Use OTH when you are not sure or the document does not clearly fit LAB or HCK
+3. Use OTH when you are not sure or the document does not clearly fit LAB or CHK
 """
 
 MED_SPECIALIST_USER = """\
@@ -86,34 +86,34 @@ You are a non-medical document sub-classifier. The document has already been \
 classified as NON-MEDICAL. Your task is to determine the specific document type.
 
 ## Sub-Categories (output EXACTLY one code)
-- **PAS** — Passport. International travel document issued by a government. \
+- **PS** — Passport. International travel document issued by a government. \
 Key indicators: MRZ lines (P<THA... format), "PASSPORT" printed on cover/header, \
 "Date of Expiry", "Nationality", "Place of Birth", booklet format with visa stamps.
-- **ID_** — National ID card or Driver's Licence. Country-issued domestic identity \
+- **ID** — National ID card or Driver's Licence. Country-issued domestic identity \
 document. Key indicators: 13-digit Thai national ID number, "บัตรประจำตัวประชาชน", \
 "National ID", driver's licence number, NOT a passport booklet.
 - **FIN** — Financial document. Invoices, tax receipts, bills, payment confirmations, \
 bank statements. Contains currency symbols, totals, "Bill to", "Invoice No.", or \
 "VAT". Note: A hospital bill is still FIN — classify by financial purpose, not origin.
 - **OTH** — Use this code ONLY when you are not confident the document is \
-PAS, ID_, or FIN, or when the document does not clearly match any of those \
+PS, ID, or FIN, or when the document does not clearly match any of those \
 categories. Do NOT list specific types here — treat OTH as a signal of uncertainty.
 
 ## Few-Shot Examples
 
-Document with "P<THA", "PASSPORT", "Date of Expiry", MRZ lines → PAS
-Document with "Republic of Thailand", booklet, visa stamps → PAS
-Document with "1-1234-56789-01-2", "บัตรประจำตัวประชาชน" → ID_
-Document with "National ID", "Date of Birth", card format → ID_
-Document with "Driver Licence", "Licence No." → ID_
+Document with "P<THA", "PASSPORT", "Date of Expiry", MRZ lines → PS
+Document with "Republic of Thailand", booklet, visa stamps → PS
+Document with "1-1234-56789-01-2", "บัตรประจำตัวประชาชน" → ID
+Document with "National ID", "Date of Birth", card format → ID
+Document with "Driver Licence", "Licence No." → ID
 Document with "Invoice", "Total: ฿15,000", "Payment Due" → FIN
 Document with "Tax Receipt", "VAT 7%", "Amount" → FIN
 Document with "Hospital Bill", "Total Amount Due" → FIN
 
 ## Rules
-1. Output EXACTLY one 3-letter code: PAS, ID_, FIN, or OTH
+1. Output EXACTLY one 3-letter code: PS, ID, FIN, or OTH
 2. Do NOT output any other text, explanation, or punctuation
-3. KEY DISTINCTION: PAS = international passport booklet; ID_ = domestic card/licence
+3. KEY DISTINCTION: PS = international passport booklet; ID = domestic card/licence
 4. Use OTH when you are not sure or the document does not clearly fit any category above
 """
 

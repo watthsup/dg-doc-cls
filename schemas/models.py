@@ -65,10 +65,10 @@ VALID_SUBCATEGORIES: dict[PrimaryClass, set[Subcategory]] = {
 class ClassificationCode(StrEnum):
     """3-letter codes for single-token logprob optimization (FR-07).
 
-    Medical sub-codes: LAB & HCK are the primary classifiable types.
+    Medical sub-codes: LAB & CHK are the primary classifiable types.
     OTH is the shared fallback for BOTH medical and non-medical paths —
     a single code avoids MOT/OTH split and triggers HITL automatically.
-    Non-medical: PAS (Passport) is separate from ID_ (National ID) because
+    Non-medical: PS (Passport) is separate from ID (National ID) because
     they have distinct key fields and business rules downstream.
 
     Total: 8 codes (2 root + 2 med-sub + 4 nonmed-sub, OTH shared).
@@ -79,10 +79,10 @@ class ClassificationCode(StrEnum):
     NON = "NON"
     # Medical sub-codes (v2: focused scope)
     LAB = "LAB"
-    HCK = "HCK"
+    CHK = "CHK"
     # Non-medical sub-codes
-    PAS = "PAS"  # Passport (international travel document)
-    ID_ = "ID_"  # National ID / driver's licence
+    PS = "PS"  # Passport (international travel document)
+    ID = "ID"  # National ID / driver's licence
     FIN = "FIN"  # Financial document
     OTH = "OTH"  # Shared fallback (med + non-med) — always triggers HITL
 
@@ -97,10 +97,10 @@ CODE_TO_PRIMARY: dict[ClassificationCode, PrimaryClass] = {
 CODE_TO_SUBCATEGORY: dict[ClassificationCode, Subcategory] = {
     # Medical
     ClassificationCode.LAB: Subcategory.LAB,
-    ClassificationCode.HCK: Subcategory.HEALTH_CHECK,
+    ClassificationCode.CHK: Subcategory.HEALTH_CHECK,
     # Non-medical
-    ClassificationCode.PAS: Subcategory.PASSPORT,
-    ClassificationCode.ID_: Subcategory.ID,
+    ClassificationCode.PS: Subcategory.PASSPORT,
+    ClassificationCode.ID: Subcategory.ID,
     ClassificationCode.FIN: Subcategory.FINANCIAL,
     # Shared fallback (both paths)
     ClassificationCode.OTH: Subcategory.OTHER,
@@ -120,12 +120,12 @@ VALID_ROOT_CODES: set[ClassificationCode] = {
 }
 VALID_MED_SUB_CODES: set[ClassificationCode] = {
     ClassificationCode.LAB,
-    ClassificationCode.HCK,
+    ClassificationCode.CHK,
     ClassificationCode.OTH,  # Shared fallback — triggers HITL
 }
 VALID_NONMED_SUB_CODES: set[ClassificationCode] = {
-    ClassificationCode.PAS,
-    ClassificationCode.ID_,
+    ClassificationCode.PS,
+    ClassificationCode.ID,
     ClassificationCode.FIN,
     ClassificationCode.OTH,  # Shared fallback — triggers HITL
 }

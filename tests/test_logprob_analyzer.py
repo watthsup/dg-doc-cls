@@ -64,13 +64,13 @@ class TestAnalyzeLogprobs:
                         "logprob": -0.1,
                         "top_logprobs": [
                             {"token": "LAB", "logprob": -0.1},
-                            {"token": "HCK", "logprob": -3.0},
+                            {"token": "CHK", "logprob": -3.0},
                         ],
                     }
                 ]
             }
         }
-        result = analyze_logprobs(metadata, ["LAB", "HCK", "IMG", "MOT"])
+        result = analyze_logprobs(metadata, ["LAB", "CHK", "IMG", "MOT"])
         expected_pct = math.exp(-0.1) * 100
         assert result.confidence_pct == pytest.approx(expected_pct, abs=0.1)
 
@@ -125,7 +125,7 @@ class TestAnalyzeLogprobs:
                 ]
             }
         }
-        result = analyze_logprobs(metadata, ["ID_", "FIN", "OTH"])
+        result = analyze_logprobs(metadata, ["ID", "FIN", "OTH"])
         assert result.top1_token == "FIN"
         assert result.top2_token == "N/A"  # No other valid token
         # Margin should be very large (top1 - (-100))

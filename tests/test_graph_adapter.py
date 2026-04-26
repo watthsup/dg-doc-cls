@@ -33,7 +33,7 @@ class TestGraphStateToPageResult:
     def test_nonmedical_passport_conversion(self) -> None:
         state = {
             "root_code": "NON",
-            "sub_code": "PAS",
+            "sub_code": "PS",
             "root_confidence_pct": 98.0,
             "sub_confidence_pct": 95.0,
             "hospital_name": None,
@@ -105,7 +105,7 @@ class TestGraphStateToPageResult:
     def test_confidence_calculation(self) -> None:
         state = {
             "root_code": "MED",
-            "sub_code": "HCK",
+            "sub_code": "CHK",
             "root_confidence_pct": 80.0,
             "sub_confidence_pct": 60.0,
         }
@@ -165,7 +165,7 @@ class TestGraphStateToDocumentResult:
         state = {
             "document_id": "compat_test",
             "root_code": "NON",
-            "sub_code": "PAS",
+            "sub_code": "PS",
             "root_confidence_pct": 95.0,
             "sub_confidence_pct": 92.0,
             "hospital_name": None,

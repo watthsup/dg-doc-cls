@@ -32,14 +32,14 @@ class TestClassificationCode:
         assert ClassificationCode.NON == "NON"
 
     def test_medical_sub_codes(self) -> None:
-        """Medical scope: LAB, HCK, and OTH (shared fallback)."""
-        med_codes = {"LAB", "HCK", "OTH"}
+        """Medical scope: LAB, CHK, and OTH (shared fallback)."""
+        med_codes = {"LAB", "CHK", "OTH"}
         actual = {c.value for c in VALID_MED_SUB_CODES}
         assert actual == med_codes
 
     def test_nonmed_sub_codes(self) -> None:
-        """Non-medical scope: PAS, ID_, FIN, OTH (fallback)."""
-        nonmed_codes = {"PAS", "ID_", "FIN", "OTH"}
+        """Non-medical scope: PS, ID, FIN, OTH (fallback)."""
+        nonmed_codes = {"PS", "ID", "FIN", "OTH"}
         actual = {c.value for c in VALID_NONMED_SUB_CODES}
         assert actual == nonmed_codes
 
@@ -68,10 +68,10 @@ class TestClassificationCode:
         assert ClassificationCode.OTH in VALID_NONMED_SUB_CODES
 
     def test_passport_separate_from_id(self) -> None:
-        """PAS and ID_ must be distinct codes in the non-med set."""
-        assert ClassificationCode.PAS in VALID_NONMED_SUB_CODES
-        assert ClassificationCode.ID_ in VALID_NONMED_SUB_CODES
-        assert ClassificationCode.PAS != ClassificationCode.ID_
+        """PS and ID must be distinct codes in the non-med set."""
+        assert ClassificationCode.PS in VALID_NONMED_SUB_CODES
+        assert ClassificationCode.ID in VALID_NONMED_SUB_CODES
+        assert ClassificationCode.PS != ClassificationCode.ID
 
 
 class TestCodeMappings:
@@ -100,16 +100,16 @@ class TestCodeMappings:
         assert CODE_TO_SUBCATEGORY[ClassificationCode.LAB] == Subcategory.LAB
 
     def test_hck_maps_correctly(self) -> None:
-        assert CODE_TO_SUBCATEGORY[ClassificationCode.HCK] == Subcategory.HEALTH_CHECK
+        assert CODE_TO_SUBCATEGORY[ClassificationCode.CHK] == Subcategory.HEALTH_CHECK
 
     def test_oth_maps_to_other_by_default(self) -> None:
         assert CODE_TO_SUBCATEGORY[ClassificationCode.OTH] == Subcategory.OTHER
 
     def test_pas_maps_to_passport(self) -> None:
-        assert CODE_TO_SUBCATEGORY[ClassificationCode.PAS] == Subcategory.PASSPORT
+        assert CODE_TO_SUBCATEGORY[ClassificationCode.PS] == Subcategory.PASSPORT
 
     def test_id_maps_correctly(self) -> None:
-        assert CODE_TO_SUBCATEGORY[ClassificationCode.ID_] == Subcategory.ID
+        assert CODE_TO_SUBCATEGORY[ClassificationCode.ID] == Subcategory.ID
 
     def test_fin_maps_correctly(self) -> None:
         assert CODE_TO_SUBCATEGORY[ClassificationCode.FIN] == Subcategory.FINANCIAL

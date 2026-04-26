@@ -243,7 +243,7 @@ async def root_router_node(state: GraphState) -> dict[str, Any]:
 async def med_specialist_node(state: GraphState) -> dict[str, Any]:
     """Sub-classify a medical document into its specific document type.
     
-    Logprob-enabled LLM call to classify LAB vs HCK vs OTH.
+    Logprob-enabled LLM call to classify LAB vs CHK vs OTH.
     """
     log = logger.bind(document_id=state.get("document_id", "unknown"))
     log.info("graph_med_specialist_start")
@@ -264,7 +264,6 @@ async def med_specialist_node(state: GraphState) -> dict[str, Any]:
 
     raw_code = response.content.strip().upper()  # type: ignore[union-attr]
     analysis = analyze_logprobs(response.response_metadata, valid_tokens)
-
     sub_code = raw_code if raw_code in valid_tokens else analysis.top1_token
     if sub_code not in valid_tokens:
         sub_code = "OTH"  # Explicit fallback to shared OTH
@@ -322,7 +321,6 @@ async def nonmed_specialist_node(state: GraphState) -> dict[str, Any]:
 
     raw_code = response.content.strip().upper()  # type: ignore[union-attr]
     analysis = analyze_logprobs(response.response_metadata, valid_tokens)
-
     sub_code = raw_code if raw_code in valid_tokens else analysis.top1_token
     if sub_code not in valid_tokens:
         sub_code = "OTH"  # Explicit fallback to shared OTH
