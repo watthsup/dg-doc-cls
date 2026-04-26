@@ -125,9 +125,9 @@ class AppConfig(BaseSettings):
         description="SQLite checkpoint database path for LangGraph state persistence",
     )
     logprobs_top_n: int = Field(
-        default=3,
+        default=5,
         ge=1,
-        le=5,
+        le=10,
         description="Number of top logprobs to capture from LLM",
     )
 

@@ -145,6 +145,10 @@ class LogprobAnalysis(BaseModel):
         ge=0.0, le=100.0,
         description="exp(top1_logprob) * 100",
     )
+    candidates: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="List of top candidates with their logprobs",
+    )
 
 
 
