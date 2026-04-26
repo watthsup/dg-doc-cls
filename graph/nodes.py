@@ -226,7 +226,6 @@ async def root_router_node(state: GraphState) -> dict[str, Any]:
             "top1_logprob": analysis.top1_logprob,
             "top2_token": analysis.top2_token,
             "top2_logprob": analysis.top2_logprob,
-            "candidates": analysis.candidates,
         },
         "root_margin": analysis.margin_score,
         "root_confidence_pct": analysis.confidence_pct,
@@ -244,7 +243,7 @@ async def root_router_node(state: GraphState) -> dict[str, Any]:
 async def med_specialist_node(state: GraphState) -> dict[str, Any]:
     """Sub-classify a medical document into its specific document type.
     
-    Logprob-enabled LLM call to classify LAB vs CHK vs OTH.
+    Logprob-enabled LLM call to classify LAB vs HCK vs OTH.
     """
     log = logger.bind(document_id=state.get("document_id", "unknown"))
     log.info("graph_med_specialist_start")
@@ -288,7 +287,6 @@ async def med_specialist_node(state: GraphState) -> dict[str, Any]:
             "top1_logprob": analysis.top1_logprob,
             "top2_token": analysis.top2_token,
             "top2_logprob": analysis.top2_logprob,
-            "candidates": analysis.candidates,
         },
         "sub_margin": analysis.margin_score,
         "sub_confidence_pct": analysis.confidence_pct,
@@ -346,7 +344,6 @@ async def nonmed_specialist_node(state: GraphState) -> dict[str, Any]:
             "top1_logprob": analysis.top1_logprob,
             "top2_token": analysis.top2_token,
             "top2_logprob": analysis.top2_logprob,
-            "candidates": analysis.candidates,
         },
         "sub_margin": analysis.margin_score,
         "sub_confidence_pct": analysis.confidence_pct,

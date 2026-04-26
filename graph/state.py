@@ -32,7 +32,7 @@ class GraphState(TypedDict, total=False):
     root_confidence_pct: float         # exp(logprob) * 100
 
     # --- Stage 2: Sub-Classification ---
-    sub_code: str | None               # "LAB", "CHK", "IMG", etc.
+    sub_code: str | None               # "LAB", "HCK", "IMG", etc.
     sub_logprobs: dict[str, Any] | None
     sub_margin: float
     sub_confidence_pct: float

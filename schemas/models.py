@@ -65,7 +65,7 @@ VALID_SUBCATEGORIES: dict[PrimaryClass, set[Subcategory]] = {
 class ClassificationCode(StrEnum):
     """3-letter codes for single-token logprob optimization (FR-07).
 
-    Medical sub-codes: LAB & CHK are the primary classifiable types.
+    Medical sub-codes: LAB & HCK are the primary classifiable types.
     OTH is the shared fallback for BOTH medical and non-medical paths —
     a single code avoids MOT/OTH split and triggers HITL automatically.
     Non-medical: PAS (Passport) is separate from ID_ (National ID) because
@@ -79,7 +79,7 @@ class ClassificationCode(StrEnum):
     NON = "NON"
     # Medical sub-codes (v2: focused scope)
     LAB = "LAB"
-    CHK = "CHK"
+    HCK = "HCK"
     # Non-medical sub-codes
     PAS = "PAS"  # Passport (international travel document)
     ID_ = "ID_"  # National ID / driver's licence
@@ -97,7 +97,7 @@ CODE_TO_PRIMARY: dict[ClassificationCode, PrimaryClass] = {
 CODE_TO_SUBCATEGORY: dict[ClassificationCode, Subcategory] = {
     # Medical
     ClassificationCode.LAB: Subcategory.LAB,
-    ClassificationCode.CHK: Subcategory.HEALTH_CHECK,
+    ClassificationCode.HCK: Subcategory.HEALTH_CHECK,
     # Non-medical
     ClassificationCode.PAS: Subcategory.PASSPORT,
     ClassificationCode.ID_: Subcategory.ID,
@@ -120,7 +120,7 @@ VALID_ROOT_CODES: set[ClassificationCode] = {
 }
 VALID_MED_SUB_CODES: set[ClassificationCode] = {
     ClassificationCode.LAB,
-    ClassificationCode.CHK,
+    ClassificationCode.HCK,
     ClassificationCode.OTH,  # Shared fallback — triggers HITL
 }
 VALID_NONMED_SUB_CODES: set[ClassificationCode] = {
@@ -144,10 +144,6 @@ class LogprobAnalysis(BaseModel):
     confidence_pct: float = Field(
         ge=0.0, le=100.0,
         description="exp(top1_logprob) * 100",
-    )
-    candidates: list[dict[str, Any]] = Field(
-        default_factory=list,
-        description="List of top candidates with their logprobs",
     )
 
 

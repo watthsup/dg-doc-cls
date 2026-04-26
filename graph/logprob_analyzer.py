@@ -48,16 +48,8 @@ def analyze_logprobs(
             confidence_pct=0.0,
         )
 
-    # Find the first token that actually contains text (skip leading spaces/newlines)
-    first_token_data = None
-    for token_data in content_logprobs:
-        if token_data.get("token", "").strip():
-            first_token_data = token_data
-            break
-            
-    if not first_token_data:
-        first_token_data = content_logprobs[0]  # Fallback
-        
+    # Use the first token's logprob data (since we expect single-token output)
+    first_token_data = content_logprobs[0]
     top_logprobs = first_token_data.get("top_logprobs", [])
 
     # Filter to only valid classification tokens
@@ -89,7 +81,6 @@ def analyze_logprobs(
             top2_logprob=-100.0,
             margin_score=abs(generated_logprob) if generated_logprob != -100.0 else 0.0,
             confidence_pct=min(100.0, math.exp(generated_logprob) * 100) if generated_logprob > -50 else 0.0,
-            candidates=top_logprobs,
         )
 
     top1 = valid_entries[0]
@@ -115,5 +106,4 @@ def analyze_logprobs(
         top2_logprob=top2_logprob,
         margin_score=margin,
         confidence_pct=confidence_pct,
-        candidates=top_logprobs,
     )

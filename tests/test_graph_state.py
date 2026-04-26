@@ -32,8 +32,8 @@ class TestClassificationCode:
         assert ClassificationCode.NON == "NON"
 
     def test_medical_sub_codes(self) -> None:
-        """Medical scope: LAB, CHK, and OTH (shared fallback)."""
-        med_codes = {"LAB", "CHK", "OTH"}
+        """Medical scope: LAB, HCK, and OTH (shared fallback)."""
+        med_codes = {"LAB", "HCK", "OTH"}
         actual = {c.value for c in VALID_MED_SUB_CODES}
         assert actual == med_codes
 
@@ -100,7 +100,7 @@ class TestCodeMappings:
         assert CODE_TO_SUBCATEGORY[ClassificationCode.LAB] == Subcategory.LAB
 
     def test_hck_maps_correctly(self) -> None:
-        assert CODE_TO_SUBCATEGORY[ClassificationCode.CHK] == Subcategory.HEALTH_CHECK
+        assert CODE_TO_SUBCATEGORY[ClassificationCode.HCK] == Subcategory.HEALTH_CHECK
 
     def test_oth_maps_to_other_by_default(self) -> None:
         assert CODE_TO_SUBCATEGORY[ClassificationCode.OTH] == Subcategory.OTHER

@@ -47,25 +47,25 @@ classified as MEDICAL. Your task is to determine the specific document type.
 - **LAB** — Laboratory test results. Contains tabular test data with columns \
 for Test Name, Result, Units, and Reference Range. \
 Keywords: CBC, BUN, Creatinine, Lipid Profile, Glucose, mg/dL, mmol/L, x10^3/uL.
-- **CHK** — Health check / wellness report. Comprehensive physical examination \
+- **HCK** — Health check / wellness report. Comprehensive physical examination \
 with vitals (Blood Pressure, BMI, Heart Rate), multiple test summaries, \
 and a doctor's overall health assessment. Often titled "Annual Health Checkup" \
 or "Executive Health Screening".
 - **OTH** — Use this code ONLY when you are not confident the document is \
-LAB or CHK, or when the document does not clearly match either category. \
+LAB or HCK, or when the document does not clearly match either category. \
 Do NOT list specific types here — treat OTH as a signal of uncertainty.
 
 ## Few-Shot Examples
 
 Document with "WBC 5.2 x10^3/uL", "Reference Range: 4.5-11.0", table format → LAB
 Document with "CBC", "Liver Function Test", result table → LAB
-Document with "Annual Health Checkup", "BMI: 22.3", "Spirometry: Normal" → CHK
-Document with "Executive Health Screening", "Blood Pressure: 120/80" → CHK
+Document with "Annual Health Checkup", "BMI: 22.3", "Spirometry: Normal" → HCK
+Document with "Executive Health Screening", "Blood Pressure: 120/80" → HCK
 
 ## Rules
-1. Output EXACTLY one 3-letter code: LAB, CHK, or OTH
+1. Output EXACTLY one 3-letter code: LAB, HCK, or OTH
 2. Do NOT output any other text, explanation, or punctuation
-3. Use OTH when you are not sure or the document does not clearly fit LAB or CHK
+3. Use OTH when you are not sure or the document does not clearly fit LAB or HCK
 """
 
 MED_SPECIALIST_USER = """\
