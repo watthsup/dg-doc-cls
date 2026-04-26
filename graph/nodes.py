@@ -21,8 +21,9 @@ from typing import Any
 
 import structlog
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import AzureChatOpenAI
+from langchain_openai import AzureChatOpenAI, ChatOpenAI
 
 from config.settings import AppConfig
 from graph.logprob_analyzer import analyze_logprobs
@@ -67,25 +68,46 @@ def _make_token_provider() -> Any:
     )
 
 
-def _create_llm(config: AppConfig, *, logprobs: bool = False) -> AzureChatOpenAI:
-    """Instantiate an AzureChatOpenAI client.
+def _create_llm(config: AppConfig, *, logprobs: bool = False) -> BaseChatModel:
+    """Instantiate an LLM client based on environment configuration.
+
+    Selection logic:
+    1. If openai_api_key is provided, use standard OpenAI (ChatOpenAI).
+    2. Else, use Azure OpenAI (AzureChatOpenAI).
 
     Args:
         config: Application configuration.
-        logprobs: If True, enables logprob capture (incompatible with
-                  with_structured_output / tool-call mode).
+        logprobs: If True, enables logprob capture.
 
     Why per-call instantiation: The Azure SDK connection pool is NOT
     thread-safe when shared across concurrent asyncio tasks.
-    Each node invocation gets an isolated connection pool.
     """
-    token_provider = _make_token_provider()
     model_kwargs: dict[str, Any] = {}
     if logprobs:
         model_kwargs = {
             "logprobs": True,
             "top_logprobs": config.logprobs_top_n,
         }
+
+    # 1. Prefer Standard OpenAI if key is present
+    if config.openai_api_key:
+        return ChatOpenAI(
+            api_key=config.openai_api_key,
+            model=config.openai_model,
+            temperature=0.0,
+            timeout=config.llm_timeout,
+            max_retries=config.llm_max_retries,
+            model_kwargs=model_kwargs,
+        )
+
+    # 2. Fall back to Azure OpenAI
+    if not config.azure_openai_endpoint or not config.azure_openai_deployment:
+        raise ValueError(
+            "Missing LLM configuration. Provide either OPENAI_API_KEY "
+            "or AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_DEPLOYMENT."
+        )
+
+    token_provider = _make_token_provider()
     return AzureChatOpenAI(
         azure_deployment=config.azure_openai_deployment,
         azure_endpoint=config.azure_openai_endpoint,
@@ -93,6 +115,7 @@ def _create_llm(config: AppConfig, *, logprobs: bool = False) -> AzureChatOpenAI
         api_version=config.azure_openai_api_version,
         temperature=0.0,
         timeout=config.llm_timeout,
+        max_retries=config.llm_max_retries,
         model_kwargs=model_kwargs,
     )
 
