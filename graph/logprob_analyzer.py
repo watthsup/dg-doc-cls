@@ -81,7 +81,7 @@ def analyze_logprobs(
             top2_logprob=-100.0,
             margin_score=abs(generated_logprob) if generated_logprob != -100.0 else 0.0,
             confidence_pct=min(100.0, math.exp(generated_logprob) * 100) if generated_logprob > -50 else 0.0,
-            candidates=[],
+            candidates=top_logprobs,
         )
 
     top1 = valid_entries[0]
@@ -107,5 +107,5 @@ def analyze_logprobs(
         top2_logprob=top2_logprob,
         margin_score=margin,
         confidence_pct=confidence_pct,
-        candidates=valid_entries,
+        candidates=top_logprobs,
     )
