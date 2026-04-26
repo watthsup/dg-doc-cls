@@ -1,7 +1,0 @@
-classifier
-confidence
-config
-exporters
-ocr
-pipeline
-schemas

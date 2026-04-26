@@ -41,3 +41,6 @@ results.jsonl
 results.csv
 errors.jsonl
 checkpoints/
+
+# Langgraph
+.langgraph_api/
