@@ -19,7 +19,7 @@
 | 2.2 | Medical Specialist (Sub-codes) | Implement medical node; Prompt tuning for LAB, CHK, OTH. | **[ * ]** | 2.0 |
 | 2.3 | Non-Med Specialist (Sub-codes) | Implement non-med node; Prompt tuning for ID, PAS, OTH. | **[ * ]** | 2.0 |
 | 2.4 | Pydantic Output Validation | Implement strict schema validation for LLM classification codes. | | 0.5 |
-| 2.5 | Dynamic Taxonomy Config | Move class descriptions to JSON/YAML for non-code updates. | | 0.5 |
+| 2.5 | Node Logic Unit Tests | Unit tests with Mocked LLM responses to verify fallback logic and logprob extraction. | | 0.5 |
 | **3.0** | **Active Labeling Strategy** | | | **5.5** |
 | 3.1 | Pilot Batch Processing | Script to run 1,000+ docs through current pipeline; export data. | | 1.0 |
 | 3.2 | Verification Tooling | Build Streamlit UI for fast human verification (Image vs Prediction). | | 1.5 |
