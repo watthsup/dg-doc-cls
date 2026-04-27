@@ -42,11 +42,12 @@ def analyze_logprobs(
         return LogprobAnalysis(
             top1_token="UNK",
             top1_logprob=-100.0,
+            top1_prob_pct=0.0,
             top2_token="UNK",
             top2_logprob=-100.0,
+            top2_prob_pct=0.0,
             margin_score=0.0,
             confidence_pct=0.0,
-            candidates=[],
         )
 
     # Use the first token's logprob data (since we expect single-token output)
@@ -75,18 +76,16 @@ def analyze_logprobs(
     valid_entries.sort(key=lambda x: x.get("logprob", -100.0), reverse=True)
 
     if not valid_entries:
-        lp = generated_logprob
-        conf = min(100.0, math.exp(lp) * 100) if lp > -50 else 0.0
-        token = generated_token or "UNK"
-        
+        p1 = min(100.0, math.exp(generated_logprob) * 100) if generated_logprob > -50 else 0.0
         return LogprobAnalysis(
-            top1_token=token,
-            top1_logprob=lp,
+            top1_token=generated_token or "UNK",
+            top1_logprob=generated_logprob,
+            top1_prob_pct=p1,
             top2_token="UNK",
             top2_logprob=-100.0,
-            margin_score=abs(lp) if lp != -100.0 else 0.0,
-            confidence_pct=conf,
-            candidates=[LogprobCandidate(token=token, logprob=lp, confidence_pct=conf)],
+            top2_prob_pct=0.0,
+            margin_score=abs(generated_logprob) if generated_logprob != -100.0 else 0.0,
+            confidence_pct=p1,
         )
 
     top1 = valid_entries[0]
@@ -103,26 +102,16 @@ def analyze_logprobs(
         top2_logprob = -100.0
 
     margin = top1_logprob - top2_logprob
-    confidence_pct = min(100.0, math.exp(top1_logprob) * 100)
-
-    # Build candidates list
-    candidates = []
-    for entry in valid_entries:
-        lp = entry.get("logprob", -100.0)
-        candidates.append(
-            LogprobCandidate(
-                token=entry.get("token", "UNK").strip().upper(),
-                logprob=lp,
-                confidence_pct=min(100.0, math.exp(lp) * 100) if lp > -50 else 0.0,
-            )
-        )
+    top1_prob_pct = min(100.0, math.exp(top1_logprob) * 100) if top1_logprob > -50 else 0.0
+    top2_prob_pct = min(100.0, math.exp(top2_logprob) * 100) if top2_logprob > -50 else 0.0
 
     return LogprobAnalysis(
         top1_token=top1_token,
         top1_logprob=top1_logprob,
+        top1_prob_pct=top1_prob_pct,
         top2_token=top2_token,
         top2_logprob=top2_logprob,
+        top2_prob_pct=top2_prob_pct,
         margin_score=margin,
-        confidence_pct=confidence_pct,
-        candidates=candidates,
+        confidence_pct=top1_prob_pct,
     )

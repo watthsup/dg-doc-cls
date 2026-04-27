@@ -121,32 +121,33 @@ def _create_llm(config: AppConfig, *, logprobs: bool = False) -> BaseChatModel:
 
 
 # ---------------------------------------------------------------------------
-# Node 0: Azure OCR Ingestion
+# Node 0: OCR Ingestion
 # ---------------------------------------------------------------------------
 
 
 async def ocr_ingestion_node(state: GraphState) -> dict[str, Any]:
-    """Call Azure Document Intelligence and populate OCR fields in state.
-
-    The Azure DI SDK is synchronous — we wrap it in asyncio.to_thread
-    to avoid blocking the event loop while awaiting the remote API call.
-    This allows other concurrent graph executions to proceed.
+    """Extract text from the document using Azure Document Intelligence.
+    
+    If azure_ocr_text is already present (e.g. provided for testing),
+    the OCR step is skipped.
     """
-    log = logger.bind(document_id=state.get("document_id", "unknown"))
+    document_id = state.get("document_id", "unknown")
+    log = logger.bind(document_id=document_id)
+    log.info("graph_ocr_ingestion_start")
 
-    # Fast path: Skip OCR if text is already provided (e.g., LangGraph Studio testing)
-    if state.get("azure_ocr_text", "").strip():
-        log.info("graph_ocr_ingestion_skipped", reason="text_already_provided")
+    # Fast-path for testing: skip OCR if text is provided
+    if state.get("azure_ocr_text"):
+        log.info("graph_ocr_ingestion_skipped", reason="text_provided")
         return {
-            "ocr_confidence": state.get("ocr_confidence", 1.0),
-            "ocr_metadata": state.get("ocr_metadata", {"pages": 1, "overall_confidence": 1.0}),
             "execution_trail": state.get("execution_trail", []) + ["ocr_ingestion (skipped)"],
         }
 
-    log.info("graph_ocr_ingestion_start")
-
     config = _load_config()
-    file_path = Path(state["file_path"])
+    file_path = state.get("file_path")
+
+    if not file_path:
+        log.error("graph_ocr_ingestion_failed", error="missing_file_path")
+        raise ValueError("Missing file_path in state")
 
     # Offload synchronous blocking SDK call to a thread pool worker
     ocr_result = await asyncio.to_thread(
@@ -221,7 +222,14 @@ async def root_router_node(state: GraphState) -> dict[str, Any]:
 
     return {
         "root_code": root_code,
-        "root_logprobs": analysis.model_dump(),
+        "root_logprobs": {
+            "top1_token": analysis.top1_token,
+            "top1_logprob": analysis.top1_logprob,
+            "top1_prob_pct": analysis.top1_prob_pct,
+            "top2_token": analysis.top2_token,
+            "top2_logprob": analysis.top2_logprob,
+            "top2_prob_pct": analysis.top2_prob_pct,
+        },
         "root_margin": analysis.margin_score,
         "root_confidence_pct": analysis.confidence_pct,
         "is_uncertain": is_uncertain,
@@ -263,7 +271,7 @@ async def med_specialist_node(state: GraphState) -> dict[str, Any]:
     if sub_code not in valid_tokens:
         sub_code = "OTH"  # Explicit fallback to shared OTH
 
-    is_uncertain = (analysis.margin_score < config.margin_threshold) or (sub_code == "OTH")
+    is_uncertain = analysis.margin_score < config.margin_threshold
 
     log.info(
         "graph_med_specialist_complete",
@@ -276,7 +284,14 @@ async def med_specialist_node(state: GraphState) -> dict[str, Any]:
 
     return {
         "sub_code": sub_code,
-        "sub_logprobs": analysis.model_dump(),
+        "sub_logprobs": {
+            "top1_token": analysis.top1_token,
+            "top1_logprob": analysis.top1_logprob,
+            "top1_prob_pct": analysis.top1_prob_pct,
+            "top2_token": analysis.top2_token,
+            "top2_logprob": analysis.top2_logprob,
+            "top2_prob_pct": analysis.top2_prob_pct,
+        },
         "sub_margin": analysis.margin_score,
         "sub_confidence_pct": analysis.confidence_pct,
         # Preserve root-level uncertainty — once uncertain, stays uncertain
@@ -315,7 +330,7 @@ async def nonmed_specialist_node(state: GraphState) -> dict[str, Any]:
     if sub_code not in valid_tokens:
         sub_code = "OTH"  # Explicit fallback to shared OTH
 
-    is_uncertain = (analysis.margin_score < config.margin_threshold) or (sub_code == "OTH")
+    is_uncertain = analysis.margin_score < config.margin_threshold
 
     log.info(
         "graph_nonmed_specialist_complete",
@@ -327,7 +342,14 @@ async def nonmed_specialist_node(state: GraphState) -> dict[str, Any]:
 
     return {
         "sub_code": sub_code,
-        "sub_logprobs": analysis.model_dump(),
+        "sub_logprobs": {
+            "top1_token": analysis.top1_token,
+            "top1_logprob": analysis.top1_logprob,
+            "top1_prob_pct": analysis.top1_prob_pct,
+            "top2_token": analysis.top2_token,
+            "top2_logprob": analysis.top2_logprob,
+            "top2_prob_pct": analysis.top2_prob_pct,
+        },
         "sub_margin": analysis.margin_score,
         "sub_confidence_pct": analysis.confidence_pct,
         "is_uncertain": is_uncertain or state.get("is_uncertain", False),
@@ -364,5 +386,3 @@ def hitl_gateway_node(state: GraphState) -> dict[str, Any]:
         "requires_human_review": True,
         "execution_trail": state.get("execution_trail", []) + ["hitl_gateway"],
     }
-
-
