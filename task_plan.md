@@ -2,6 +2,12 @@
 
 | ID | Phase & Task Description | Sub-Tasks / Technical Requirements | Complexity | Est. MD |
 | :--- | :--- | :--- | :---: | :---: |
+| **0.0** | **Document Pre-processing** | | | **3.0** |
+| 0.1 | Document Loader Adapter | Implement support for local/S3 file loading and Mime-type validation. | | 0.5 |
+| 0.2 | Page Splitting Logic | Logic to split multi-page PDFs into individual images/sub-PDFs for processing. | | 0.5 |
+| 0.3 | Parallel OCR Orchestration | Implementation of concurrent page-level OCR using Azure DI. | | 1.0 |
+| 0.4 | OCR Result Aggregator | Merging page-level text, confidence, and metadata into a unified document object. | | 0.5 |
+| 0.5 | Pre-processing Unit Tests | Validation of splitting, merging, and handling of corrupted/blurred files. | | 0.5 |
 | **1.0** | **Architecture & Foundation** | | | **3.5** |
 | 1.1 | Graph State Design | Define `GraphState`, Pydantic schemas for node outputs. | | 0.5 |
 | 1.2 | Logprob Analyzer Engine | Implement math logic for Margin calculation and confidence normalization. | | 1.0 |
@@ -28,16 +34,19 @@
 | 5.1 | FastAPI Endpoints | `/classify` (async), `/health`, and metadata endpoints. | | 1.0 |
 | 5.2 | Validation Middleware | Input validation (File size, Mime type) and Global Exception Handling. | | 0.5 |
 | 5.3 | Integration Docs | Generate Swagger/Redoc and provide Client-side SDK samples. | | 0.5 |
-| **TOTAL** | | | | **23.0 MD** |
+| **TOTAL** | | | | **26.0 MD** |
 
 ---
 
-### Project Remarks & Constraints
+### ⚠️ Project Remarks & Constraints
 
-#### 1. Taxonomy Complexity Scaling (`*`)
-Tasks marked with `*` are directly dependent on the number of classes. 
-*   **Current assumption:** ~10-15 classes total across 2 levels.
-*   **Risk:** If the taxonomy expands to a higher number of classes, the time for **Prompt Tuning (2.2, 2.3)** and **Conflict Resolution (4.3)** will increase as the decision boundaries become more complex.
+#### 1. Taxonomy Complexity Scaling `[ * ]`
+Tasks marked with `[ * ]` are directly impacted by the number of classes. 
+*   **Current assumption:** ~10-15 classes total.
+*   **Risk:** If the taxonomy grows to 30-50 classes, the time for **Human Labeling (3.3)** and **Prompt Conflict Resolution (4.3)** will increase exponentially because the "boundary" between classes becomes harder to define.
 
 #### 2. Ground Truth as the Primary Bottleneck
 The absence of "Gold Standard" labels is the most critical risk to system reliability. Phase 3.0 (Labeling) is a mandatory prerequisite for Phase 4.0; without verified answers, we cannot scientifically optimize the system for maximum accuracy or detect subtle model errors.
+
+#### 3. Labeling Workflow Efficiency
+To hit the estimated timeline in Phase 3.3, the verification process in Phase 3.2 must be optimized for speed. A high-throughput labeling environment is required to build a statistically significant dataset within the allocated 2.0 MD.
