@@ -82,22 +82,22 @@ def _create_llm(config: AppConfig, *, logprobs: bool = False) -> BaseChatModel:
     Why per-call instantiation: The Azure SDK connection pool is NOT
     thread-safe when shared across concurrent asyncio tasks.
     """
-    model_kwargs: dict[str, Any] = {}
+    kwargs: dict[str, Any] = {
+        "temperature": 0.0,
+        "timeout": config.llm_timeout,
+        "max_retries": config.llm_max_retries,
+    }
+    
     if logprobs:
-        model_kwargs = {
-            "logprobs": True,
-            "top_logprobs": config.logprobs_top_n,
-        }
+        kwargs["logprobs"] = True
+        kwargs["top_logprobs"] = config.logprobs_top_n
 
     # 1. Prefer Standard OpenAI if key is present
     if config.openai_api_key:
         return ChatOpenAI(
             api_key=config.openai_api_key,
             model=config.openai_model,
-            temperature=0.0,
-            timeout=config.llm_timeout,
-            max_retries=config.llm_max_retries,
-            model_kwargs=model_kwargs,
+            **kwargs
         )
 
     # 2. Fall back to Azure OpenAI
@@ -113,10 +113,7 @@ def _create_llm(config: AppConfig, *, logprobs: bool = False) -> BaseChatModel:
         azure_endpoint=config.azure_openai_endpoint,
         azure_ad_token_provider=token_provider,
         api_version=config.azure_openai_api_version,
-        temperature=0.0,
-        timeout=config.llm_timeout,
-        max_retries=config.llm_max_retries,
-        model_kwargs=model_kwargs,
+        **kwargs
     )
 
 
