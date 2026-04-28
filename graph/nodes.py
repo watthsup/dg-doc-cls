@@ -194,7 +194,7 @@ async def root_router_node(state: GraphState) -> dict[str, Any]:
 
     messages = [
         SystemMessage(content=ROOT_ROUTER_SYSTEM),
-        HumanMessage(content=ROOT_ROUTER_USER.format(ocr_text=ocr_text[:4000])),
+        HumanMessage(content=ROOT_ROUTER_USER.format(ocr_text=ocr_text)),
     ]
 
     response = await llm.ainvoke(messages)
@@ -254,7 +254,7 @@ async def med_specialist_node(state: GraphState) -> dict[str, Any]:
 
     messages = [
         SystemMessage(content=MED_SPECIALIST_SYSTEM),
-        HumanMessage(content=MED_SPECIALIST_USER.format(ocr_text=ocr_text[:4000])),
+        HumanMessage(content=MED_SPECIALIST_USER.format(ocr_text=ocr_text)),
     ]
 
     # Run classification
@@ -315,7 +315,7 @@ async def nonmed_specialist_node(state: GraphState) -> dict[str, Any]:
 
     messages = [
         SystemMessage(content=NONMED_SPECIALIST_SYSTEM),
-        HumanMessage(content=NONMED_SPECIALIST_USER.format(ocr_text=ocr_text[:4000])),
+        HumanMessage(content=NONMED_SPECIALIST_USER.format(ocr_text=ocr_text)),
     ]
 
     llm = _create_llm(config, logprobs=True)

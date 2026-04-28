@@ -1,22 +1,28 @@
 """CLI entry point for batch document classification.
 
+Processes all documents in a directory, classifying each page independently.
+
 Usage:
     python scripts/run_batch.py --input-dir ./documents --output-dir ./results
+    python scripts/run_batch.py --input-dir ./documents --output-dir ./results --json
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import sys
+import time
 from pathlib import Path
 
 import click
 import structlog
 
 from config import AppConfig, setup_logging
-from exporters.writer import export_batch_result
-from pipeline.batch import process_batch
+from graph.builder import build_classification_graph
+from pipeline.document_processor import process_document_pages
 from pipeline.filesystem import scan_documents
+from schemas.multi_page import MultiPageResult
 
 
 @click.command()
@@ -32,32 +38,21 @@ from pipeline.filesystem import scan_documents
     default=Path("./output"),
     help="Directory for output files (default: ./output)",
 )
-@click.option(
-    "--output-format",
-    type=click.Choice(["jsonl", "csv", "both"]),
-    default="jsonl",
-)
-@click.option("--max-concurrency", type=int, default=None)
-@click.option("--max-pages", type=int, default=None)
+@click.option("--max-concurrency", type=int, default=3, help="Max documents to process concurrently")
 @click.option("--verbose", is_flag=True, default=False)
+@click.option("--json", "as_json", is_flag=True, default=False, help="Output as JSONL")
 def main(
     input_dir: Path,
     output_dir: Path,
-    output_format: str,
-    max_concurrency: int | None,
-    max_pages: int | None,
+    max_concurrency: int,
     verbose: bool,
+    as_json: bool,
 ) -> None:
-    """Classify documents in a folder and export results."""
+    """Classify all documents in a directory using the LangGraph pipeline."""
     config = AppConfig()  # type: ignore[call-arg]
 
-    if max_concurrency is not None:
-        config = config.model_copy(update={"max_concurrency": max_concurrency})
-    if max_pages is not None:
-        config = config.model_copy(update={"max_pages": max_pages})
     if verbose:
         config = config.model_copy(update={"log_level": "DEBUG"})
-    config = config.model_copy(update={"output_format": output_format})
 
     setup_logging(config)
     log = structlog.get_logger()
@@ -70,29 +65,81 @@ def main(
         click.echo("No supported documents found.")
         sys.exit(0)
 
-    log.info("documents_found", count=len(documents))
     click.echo(f"Found {len(documents)} documents. Processing...")
 
-    batch_result = asyncio.run(process_batch(documents, config))
-    output_files = export_batch_result(batch_result, output_dir, output_format)
+    asyncio.run(_run_batch(documents, config, output_dir, max_concurrency, as_json))
+
+
+async def _run_batch(
+    documents: list,
+    config: AppConfig,
+    output_dir: Path,
+    max_concurrency: int,
+    as_json: bool,
+) -> None:
+    """Run batch processing with controlled concurrency."""
+    log = structlog.get_logger()
+    start_time = time.monotonic()
+
+    # Build graph once, reuse for all documents
+    graph = build_classification_graph(config, use_checkpointer=False)
+
+    semaphore = asyncio.Semaphore(max_concurrency)
+    results: list[MultiPageResult] = []
+    errors: list[dict] = []
+
+    async def _process_one(doc) -> None:
+        async with semaphore:
+            try:
+                result = await process_document_pages(
+                    file_path=doc.file_path,
+                    config=config,
+                    graph=graph,
+                )
+                results.append(result)
+                click.echo(f"  ✅ {result.file_name}: {result.summary}")
+            except Exception as e:
+                error_info = {
+                    "document_id": doc.document_id,
+                    "file_name": doc.file_path.name,
+                    "error": str(e),
+                }
+                errors.append(error_info)
+                log.error("document_failed", **error_info)
+                click.echo(f"  ❌ {doc.file_path.name}: {e}")
+
+    tasks = [_process_one(doc) for doc in documents]
+    await asyncio.gather(*tasks)
+
+    elapsed_s = time.monotonic() - start_time
+
+    # --- Output ---
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if as_json:
+        output_file = output_dir / "batch_results.jsonl"
+        with open(output_file, "w") as f:
+            for r in results:
+                f.write(r.model_dump_json() + "\n")
+        click.echo(f"\nResults written to: {output_file}")
+
+    if errors:
+        error_file = output_dir / "errors.jsonl"
+        with open(error_file, "w") as f:
+            for e in errors:
+                f.write(json.dumps(e) + "\n")
+        click.echo(f"Errors written to: {error_file}")
 
     click.echo(f"\n{'='*50}")
     click.echo("BATCH PROCESSING COMPLETE")
     click.echo(f"{'='*50}")
-    click.echo(f"Total:      {batch_result.total_documents}")
-    click.echo(f"Successful: {batch_result.successful}")
-    click.echo(f"Failed:     {batch_result.failed}")
-    click.echo("\nOutput files:")
-    for f in output_files:
-        click.echo(f"  → {f}")
+    click.echo(f"Total:      {len(documents)}")
+    click.echo(f"Successful: {len(results)}")
+    click.echo(f"Failed:     {len(errors)}")
+    click.echo(f"Time:       {elapsed_s:.1f}s")
 
-    if batch_result.failed > 0:
-        click.echo(
-            f"\n⚠️  {batch_result.failed} documents failed. "
-            "Check errors.jsonl for details."
-        )
-
-    sys.exit(1 if batch_result.failed > 0 else 0)
+    if errors:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
