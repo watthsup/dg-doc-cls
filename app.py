@@ -116,7 +116,7 @@ if uploaded_file is not None:
 
             with col_img:
                 if page.page_index < len(display_images):
-                    st.image(display_images[page.page_index], use_container_width=True)
+                    st.image(display_images[page.page_index], width="stretch")
 
             with col_data:
                 st.markdown("### 🏷️ Classification")
@@ -216,7 +216,7 @@ if uploaded_file is not None:
 
             with col_img:
                 if page_idx < len(display_images):
-                    st.image(display_images[page_idx], use_container_width=True)
+                    st.image(display_images[page_idx], width="stretch")
 
             with col_data:
                 st.markdown("### 🏷️ Classification")

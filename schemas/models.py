@@ -30,6 +30,7 @@ class Subcategory(StrEnum):
 
     # Medical
     LAB = "lab"
+    CLI = "clinical_document"
     HEALTH_CHECK = "health_check"
     IMAGING_REPORT = "imaging_report"
     IPD_OPD_DOCUMENT = "ipd_opd_document"
@@ -51,6 +52,7 @@ VALID_SUBCATEGORIES: dict[PrimaryClass, set[Subcategory]] = {
         Subcategory.IPD_OPD_DOCUMENT,
         Subcategory.MEDICAL_CERTIFICATE,
         Subcategory.DISCHARGE_SUMMARY,
+        Subcategory.CLI,
         Subcategory.MEDICAL_OTHER,
     },
     PrimaryClass.NON_MEDICAL: {
@@ -80,6 +82,7 @@ class ClassificationCode(StrEnum):
     # Medical sub-codes (v2: focused scope)
     LAB = "LAB"
     CHK = "CHK"
+    CLI = "CLI"
     # Non-medical sub-codes
     PS = "PS"  # Passport (international travel document)
     ID = "ID"  # National ID / driver's licence
@@ -98,6 +101,7 @@ CODE_TO_SUBCATEGORY: dict[ClassificationCode, Subcategory] = {
     # Medical
     ClassificationCode.LAB: Subcategory.LAB,
     ClassificationCode.CHK: Subcategory.HEALTH_CHECK,
+    ClassificationCode.CLI: Subcategory.CLI,
     # Non-medical
     ClassificationCode.PS: Subcategory.PASSPORT,
     ClassificationCode.ID: Subcategory.ID,
@@ -121,6 +125,7 @@ VALID_ROOT_CODES: set[ClassificationCode] = {
 VALID_MED_SUB_CODES: set[ClassificationCode] = {
     ClassificationCode.LAB,
     ClassificationCode.CHK,
+    ClassificationCode.CLI,
     ClassificationCode.OTH,  # Shared fallback — triggers HITL
 }
 VALID_NONMED_SUB_CODES: set[ClassificationCode] = {

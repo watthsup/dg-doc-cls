@@ -20,8 +20,8 @@ def load_data(path: str) -> pd.DataFrame:
             df['reviewed_root_code'] = df['root_code']
         if 'reviewed_sub_code' not in df.columns:
             df['reviewed_sub_code'] = df['sub_code']
-        if 'is_corrected' not in df.columns:
-            df['is_corrected'] = False
+        if 'is_editted' not in df.columns:
+            df['is_editted'] = False
         return df
     except Exception as e:
         st.error(f"Error loading CSV: {e}")
@@ -73,7 +73,7 @@ def mark_reviewed(new_root: str, new_sub: str):
     is_changed = (str(row['root_code']) != new_root) or (str(row['sub_code']) != new_sub)
     st.session_state.df.at[idx, 'reviewed_root_code'] = new_root
     st.session_state.df.at[idx, 'reviewed_sub_code'] = new_sub
-    st.session_state.df.at[idx, 'is_corrected'] = is_changed
+    st.session_state.df.at[idx, 'is_editted'] = is_changed
     save_data()
     next_item()
 
@@ -86,16 +86,19 @@ col_img, col_act = st.columns([1.2, 1])
 with col_img:
     st.subheader(f"📄 {row['file_name']} (Page {row['page_index']})")
     
-    # Prediction Header
+    # Prediction Header & Uncertainty Flag
     is_uncertain = str(row['is_uncertain']).lower() == 'true'
+    
+    if is_uncertain:
+        st.warning("⚠️ **AI UNCERTAINTY:** The model is not confident about this prediction. Please review carefully.")
+    
     msg_color = "red" if is_uncertain else "green"
     st.markdown(f"### Current Prediction: :{msg_color}[{row['root_code']} ➔ {row['sub_code']}]")
     
-    # Metrics
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Root Score", f"{row['root_score']}")
-    c2.metric("Margin", f"{row['root_margin']} / {row['sub_margin']}")
-    c3.metric("Confidence", f"{row['root_conf_pct']}% / {row['sub_conf_pct']}%")
+    # Simple Confidence Metrics
+    c1, c2 = st.columns(2)
+    c1.metric("Root Confidence", f"{row['root_conf_pct']}%")
+    c2.metric("Sub Confidence", f"{row['sub_conf_pct']}%")
     
     # Image loading
     try:
@@ -106,7 +109,7 @@ with col_img:
         img_file = Path(root_img_dir) / str(row['root_code']) / str(row['sub_code']) / f"{base_name}_p_{page_idx}.png"
         
         if img_file.exists():
-            st.image(str(img_file), use_column_width=True)
+            st.image(str(img_file), width="stretch")
         else:
             st.warning(f"Image not found at expected path:\n`{img_file}`")
     except Exception as e:
@@ -118,33 +121,18 @@ with col_img:
 
 # --- Right Column: Actions & Labeling ---
 with col_act:
-    st.subheader("🛠️ Review Actions")
-    
-    # Navigation
-    nav1, nav2, nav3, nav4 = st.columns(4)
-    with nav1:
-        st.button("⬅️ Prev", on_click=prev_item, use_container_width=True, disabled=(idx == 0))
-    with nav2:
-        # Mark as correct (no change)
-        st.button("✅ Confirm", on_click=mark_reviewed, args=(row['root_code'], row['sub_code']), use_container_width=True, type="primary")
-    with nav3:
-        st.button("Next ➡️", on_click=next_item, use_container_width=True, disabled=(idx == total_rows - 1))
-    with nav4:
-        st.button("🔍 Next Uncertain", on_click=next_uncertain, use_container_width=True)
-
-    st.divider()
     st.markdown("### 🚑 Medical (MED)")
     m1, m2 = st.columns(2)
     m3, m4 = st.columns(2)
     
     with m1:
-        if st.button("LAB", use_container_width=True): mark_reviewed("MED", "LAB")
+        st.button("LAB", on_click=mark_reviewed, args=("MED", "LAB"), width="stretch")
     with m2:
-        if st.button("HEALTH CHECK", use_container_width=True): mark_reviewed("MED", "CHK")
+        st.button("HEALTH CHECK", on_click=mark_reviewed, args=("MED", "CHK"), width="stretch")
     with m3:
-        if st.button("IPD/OPD DOC", use_container_width=True): mark_reviewed("MED", "IPD_OPD_DOCUMENT")
+        st.button("IPD/OPD DOC", on_click=mark_reviewed, args=("MED", "IPD_OPD_DOCUMENT"), width="stretch")
     with m4:
-        if st.button("OTHER (MED)", use_container_width=True): mark_reviewed("MED", "MEDICAL_OTHER")
+        st.button("OTHER (MED)", on_click=mark_reviewed, args=("MED", "MEDICAL_OTHER"), width="stretch")
         
     st.divider()
     st.markdown("### 🪪 Non-Medical (NON)")
@@ -152,22 +140,33 @@ with col_act:
     n3, n4 = st.columns(2)
     
     with n1:
-        if st.button("ID", use_container_width=True): mark_reviewed("NON", "ID")
+        st.button("ID", on_click=mark_reviewed, args=("NON", "ID"), width="stretch")
     with n2:
-        if st.button("PASSPORT", use_container_width=True): mark_reviewed("NON", "PAS")
+        st.button("PASSPORT", on_click=mark_reviewed, args=("NON", "PAS"), width="stretch")
     with n3:
-        if st.button("FINANCIAL", use_container_width=True): mark_reviewed("NON", "FIN")
+        st.button("FINANCIAL", on_click=mark_reviewed, args=("NON", "FIN"), width="stretch")
     with n4:
-        if st.button("OTHER (NON)", use_container_width=True): mark_reviewed("NON", "OTH")
+        st.button("OTHER (NON)", on_click=mark_reviewed, args=("NON", "OTH"), width="stretch")
 
+    st.divider()
+    st.subheader("🎮 Navigation")
+    
+    # Navigation at the BOTTOM
+    nav1, nav2 = st.columns([1, 2])
+    with nav1:
+        st.button("⬅️ Prev", on_click=prev_item, width="stretch", disabled=(idx == 0))
+    with nav2:
+        # Mark as correct (no change)
+        st.button("✅ Confirm Correct", on_click=mark_reviewed, args=(row['root_code'], row['sub_code']), width="stretch", type="primary")
+    
     st.divider()
     
     # Status showing what is currently recorded
-    is_corr = row.get('is_corrected', False)
+    is_corr = row.get('is_editted', False)
     rev_r = row.get('reviewed_root_code', row['root_code'])
     rev_s = row.get('reviewed_sub_code', row['sub_code'])
     
     if is_corr:
-        st.info(f"**Status:** Corrected to `{rev_r} ➔ {rev_s}`")
+        st.info(f"**Status:** Edited to `{rev_r} ➔ {rev_s}`")
     else:
         st.success(f"**Status:** Accepted as `{rev_r} ➔ {rev_s}`")

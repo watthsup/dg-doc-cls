@@ -44,3 +44,4 @@ checkpoints/
 
 # Langgraph
 .langgraph_api/
+output/
