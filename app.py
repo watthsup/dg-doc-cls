@@ -2,11 +2,13 @@ import asyncio
 import tempfile
 from pathlib import Path
 
+import numpy as np
 import streamlit as st
 import structlog
 
 from config import AppConfig, setup_logging
 from ocr.engine import analyze_document, create_di_client, load_document_images
+from ocr.quality import assess_image_quality
 from pipeline.document import DocumentProcessor
 from pipeline.filesystem import detect_file_type, generate_document_id
 
@@ -25,6 +27,38 @@ pipeline_mode = st.sidebar.radio(
 uploaded_file = st.file_uploader(
     "Upload Medical Document", type=["pdf", "png", "jpg", "jpeg", "tif", "tiff"]
 )
+
+
+# --- Shared UI helpers ---
+
+
+def _run_quality_assessment(display_images: list) -> list:
+    """Run OpenCV quality assessment on loaded page images."""
+    assessments = []
+    for img in display_images:
+        np_img = np.array(img)
+        assessments.append(assess_image_quality(np_img))
+    return assessments
+
+
+def _render_quality_panel(qa, st_container):
+    """Render quality scores in a Streamlit container."""
+    with st_container:
+        st.markdown("### 📊 Image Quality")
+        col_q1, col_q2, col_q3 = st.columns(3)
+
+        blur_color = "green" if qa.blur_score >= 0.3 else "red"
+        contrast_color = "green" if qa.contrast_score >= 0.3 else "red"
+        skew_color = "green" if abs(qa.skew_angle) <= 5.0 else "red"
+
+        col_q1.markdown(f"**Blur:** :{blur_color}[{qa.blur_score:.2f}]")
+        col_q2.markdown(f"**Contrast:** :{contrast_color}[{qa.contrast_score:.2f}]")
+        col_q3.markdown(f"**Skew:** :{skew_color}[{qa.skew_angle:.1f}°]")
+
+        if qa.issues:
+            for issue in qa.issues:
+                st.warning(issue)
+
 
 if uploaded_file is not None:
     # Save uploaded file to a temporary location
@@ -55,6 +89,7 @@ if uploaded_file is not None:
                 processor = DocumentProcessor(config=config)
                 result = asyncio.run(processor.process_file(tmp_path))
                 display_images = load_document_images(tmp_path, file_type)
+                quality_results = _run_quality_assessment(display_images)
             except Exception as e:
                 log.exception("streamlit_v2_failed", error=str(e))
                 st.error(f"Error processing document: {e}")
@@ -120,6 +155,10 @@ if uploaded_file is not None:
 
                 st.caption(f"Trail: {' → '.join(page.execution_trail)}")
 
+                # Image Quality
+                if page.page_index < len(quality_results):
+                    _render_quality_panel(quality_results[page.page_index], st)
+
                 with st.expander("Show Extracted Text"):
                     st.text(page.ocr_text)
 
@@ -144,6 +183,7 @@ if uploaded_file is not None:
                     )
                 )
                 display_images = load_document_images(tmp_path, file_type)
+                quality_results = _run_quality_assessment(display_images)
 
                 # Classify each page via LLMClassifier
                 classifier = LLMClassifier(config)
@@ -162,7 +202,7 @@ if uploaded_file is not None:
                 st.error(f"Error processing document: {e}")
                 st.stop()
 
-        status_msg.success(f"✅ V1 Classification Complete!")
+        status_msg.success("✅ V1 Classification Complete!")
         st.markdown("---")
 
         for ocr_page, llm_output in page_results:
@@ -186,6 +226,10 @@ if uploaded_file is not None:
                 st.metric("OCR Confidence", f"{ocr_page.mean_confidence:.1f}%")
 
                 st.caption("ℹ️ V1 mode — no logprob analysis available")
+
+                # Image Quality
+                if page_idx < len(quality_results):
+                    _render_quality_panel(quality_results[page_idx], st)
 
                 with st.expander("Show Extracted Text"):
                     st.text(ocr_page.text)
