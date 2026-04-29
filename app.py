@@ -131,6 +131,16 @@ if uploaded_file is not None:
     else:
         from classifier.llm import LLMClassifier
 
+        # V1 requires Azure OpenAI (LLMClassifier doesn't support standard OpenAI)
+        if not config.azure_openai_endpoint or not config.azure_openai_deployment:
+            st.error(
+                "⚠️ V1 mode requires **Azure OpenAI** credentials "
+                "(`AZURE_OPENAI_ENDPOINT` + `AZURE_OPENAI_DEPLOYMENT`). "
+                "Your current config uses standard OpenAI. "
+                "Please switch to **V2 — LangGraph** mode instead."
+            )
+            st.stop()
+
         with st.spinner("🤖 Direct LLM classification (single-hop)..."):
             try:
                 # OCR the whole file
