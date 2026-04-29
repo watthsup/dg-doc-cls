@@ -37,6 +37,11 @@ def _run_quality_assessment(display_images: list) -> list:
     assessments = []
     for img in display_images:
         np_img = np.array(img)
+        # Ensure uint8 — PIL binary mode ('1') produces bool arrays
+        if np_img.dtype == bool:
+            np_img = (np_img * 255).astype(np.uint8)
+        elif np_img.dtype != np.uint8:
+            np_img = np_img.astype(np.uint8)
         assessments.append(assess_image_quality(np_img))
     return assessments
 
@@ -79,6 +84,10 @@ if uploaded_file is not None:
         st.error("Unsupported file type!")
         st.stop()
 
+    # --- Shared: load images & run quality assessment first ---
+    display_images = load_document_images(tmp_path, file_type)
+    quality_results = _run_quality_assessment(display_images)
+
     # ===================================================================
     # V2 — LangGraph (Hierarchical, per-page)
     # ===================================================================
@@ -87,8 +96,6 @@ if uploaded_file is not None:
             try:
                 processor = DocumentProcessor(config=config)
                 result = asyncio.run(processor.process_file(tmp_path))
-                display_images = load_document_images(tmp_path, file_type)
-                quality_results = _run_quality_assessment(display_images)
             except Exception as e:
                 log.exception("streamlit_v2_failed", error=str(e))
                 st.error(f"Error processing document: {e}")
@@ -181,8 +188,6 @@ if uploaded_file is not None:
                         model_id=config.azure_di_model,
                     )
                 )
-                display_images = load_document_images(tmp_path, file_type)
-                quality_results = _run_quality_assessment(display_images)
 
                 # Classify each page via LLMClassifier
                 classifier = LLMClassifier(config)
