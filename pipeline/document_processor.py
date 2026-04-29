@@ -1,5 +1,13 @@
 """Document Processor — splits multi-page files and classifies each page independently.
 
+Designed as a reusable module for integration into CLI scripts, APIs, 
+Streamlit apps, or any service that needs document classification.
+
+Usage:
+    processor = DocumentProcessor(config)
+    result = await processor.process_file(Path("doc.pdf"))
+    result = await processor.process_text("some OCR text")
+
 Flow:
   1. Load file and detect type (PDF / TIF / Image)
   2. Run Azure DI OCR on the entire file (single API call, page-level results)
@@ -29,9 +37,191 @@ from pipeline.filesystem import detect_file_type, generate_document_id
 from schemas.multi_page import MultiPageResult, PageClassificationResult
 
 if TYPE_CHECKING:
+    from azure.ai.documentintelligence import DocumentIntelligenceClient
     from langgraph.graph.state import CompiledStateGraph
 
 logger = structlog.get_logger()
+
+
+class DocumentProcessor:
+    """Reusable document classification module.
+
+    Holds shared resources (config, graph, OCR client) so they are
+    created once and reused across multiple calls. Thread-safe for
+    concurrent async usage via semaphore control.
+
+    Args:
+        config: Application configuration. Created from env if None.
+        graph: Pre-built LangGraph. Built on first use if None.
+        max_concurrent_pages: Max pages to classify in parallel per document.
+    """
+
+    def __init__(
+        self,
+        config: AppConfig | None = None,
+        graph: CompiledStateGraph | None = None,
+        max_concurrent_pages: int = 5,
+    ) -> None:
+        self._config = config or AppConfig()  # type: ignore[call-arg]
+        self._graph = graph
+        self._max_concurrent_pages = max_concurrent_pages
+        self._di_client: DocumentIntelligenceClient | None = None
+
+    @property
+    def config(self) -> AppConfig:
+        return self._config
+
+    @property
+    def graph(self) -> CompiledStateGraph:
+        """Lazy-build the classification graph on first access."""
+        if self._graph is None:
+            self._graph = build_classification_graph(
+                self._config, use_checkpointer=False,
+            )
+        return self._graph
+
+    @property
+    def di_client(self) -> DocumentIntelligenceClient:
+        """Lazy-create the Azure DI client on first access."""
+        if self._di_client is None:
+            self._di_client = create_di_client(self._config)
+        return self._di_client
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    async def process_file(self, file_path: Path) -> MultiPageResult:
+        """Process a multi-page document, classifying each page independently.
+
+        Args:
+            file_path: Path to the document file (PDF, TIF, or image).
+
+        Returns:
+            MultiPageResult with per-page classification details.
+        """
+        start_time = time.monotonic()
+        log = logger.bind(file_path=str(file_path))
+
+        # --- 1. Validate file ---
+        file_type = detect_file_type(file_path)
+        if not file_type:
+            raise ValueError(f"Unsupported file type: {file_path.suffix}")
+
+        doc_id = generate_document_id(file_path)
+        log = log.bind(document_id=doc_id)
+
+        # --- 2. Run Azure DI OCR on entire file (single API call) ---
+        log.info("document_processor_ocr_start")
+        ocr_result = await asyncio.to_thread(
+            analyze_document,
+            client=self.di_client,
+            file_path=file_path,
+            model_id=self._config.azure_di_model,
+        )
+
+        total_pages = len(ocr_result.pages)
+        log.info(
+            "document_processor_ocr_complete",
+            total_pages=total_pages,
+            overall_confidence=round(ocr_result.overall_confidence, 3),
+        )
+
+        if total_pages == 0:
+            raise ValueError(f"Azure DI returned 0 pages for {file_path}")
+
+        # --- 3. Classify each page in parallel ---
+        semaphore = asyncio.Semaphore(self._max_concurrent_pages)
+
+        async def classify_page(
+            page_idx: int, page_text: str,
+        ) -> PageClassificationResult:
+            async with semaphore:
+                log.info("classifying_page", page_index=page_idx)
+                return await self._classify_text(
+                    text=page_text,
+                    document_id=f"{doc_id}_p{page_idx}",
+                    file_path=str(file_path),
+                    file_type=file_type,
+                    page_index=page_idx,
+                )
+
+        tasks = [
+            classify_page(p.page_index, p.text)
+            for p in ocr_result.pages
+        ]
+        page_results = await asyncio.gather(*tasks)
+        page_results = sorted(page_results, key=lambda p: p.page_index)
+
+        elapsed_ms = int((time.monotonic() - start_time) * 1000)
+        log.info(
+            "document_processor_complete",
+            total_pages=total_pages,
+            classified_pages=len(page_results),
+            elapsed_ms=elapsed_ms,
+        )
+
+        return MultiPageResult(
+            document_id=doc_id,
+            file_name=file_path.name,
+            total_pages=total_pages,
+            pages=list(page_results),
+            processing_time_ms=elapsed_ms,
+        )
+
+    async def process_text(self, text: str) -> MultiPageResult:
+        """Process raw text as a single-page document.
+
+        Useful for testing, notebooks, or when OCR text is already available.
+        """
+        start_time = time.monotonic()
+
+        page_result = await self._classify_text(
+            text=text,
+            document_id="text_input",
+            file_path="<text_input>",
+            file_type="text",
+            page_index=0,
+        )
+
+        elapsed_ms = int((time.monotonic() - start_time) * 1000)
+        return MultiPageResult(
+            document_id="text_input",
+            file_name="<text_input>",
+            total_pages=1,
+            pages=[page_result],
+            processing_time_ms=elapsed_ms,
+        )
+
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+
+    async def _classify_text(
+        self,
+        text: str,
+        document_id: str,
+        file_path: str,
+        file_type: str,
+        page_index: int,
+    ) -> PageClassificationResult:
+        """Run a single page's text through the LangGraph classification pipeline."""
+        state = create_initial_state(
+            document_id=document_id,
+            file_path=file_path,
+            file_type=file_type,
+        )
+        state["azure_ocr_text"] = text
+
+        thread_config = {"configurable": {"thread_id": document_id}}
+        final_state = await self.graph.ainvoke(state, config=thread_config)
+
+        return _extract_page_result(page_index, final_state, text)
+
+
+# ----------------------------------------------------------------------
+# Helper
+# ----------------------------------------------------------------------
 
 
 def _extract_page_result(
@@ -57,109 +247,22 @@ def _extract_page_result(
     )
 
 
+# ----------------------------------------------------------------------
+# Convenience functions (backward-compatible with scripts/notebooks)
+# ----------------------------------------------------------------------
+
+
 async def process_document_pages(
     file_path: Path,
     config: AppConfig | None = None,
     graph: CompiledStateGraph | None = None,
     max_concurrent_pages: int = 5,
 ) -> MultiPageResult:
-    """Process a multi-page document, classifying each page independently.
-
-    Args:
-        file_path: Path to the document file (PDF, TIF, or image).
-        config: Application configuration. Created from env if None.
-        graph: Pre-built LangGraph. Built fresh if None.
-        max_concurrent_pages: Max pages to classify in parallel.
-
-    Returns:
-        MultiPageResult with per-page classification details.
-    """
-    start_time = time.monotonic()
-
-    if config is None:
-        config = AppConfig()  # type: ignore[call-arg]
-
-    log = logger.bind(file_path=str(file_path))
-
-    # --- 1. Validate file ---
-    file_type = detect_file_type(file_path)
-    if not file_type:
-        raise ValueError(f"Unsupported file type: {file_path.suffix}")
-
-    doc_id = generate_document_id(file_path)
-    log = log.bind(document_id=doc_id)
-
-    # --- 2. Run Azure DI OCR on entire file (single API call) ---
-    log.info("document_processor_ocr_start")
-    di_client = create_di_client(config)
-    ocr_result = await asyncio.to_thread(
-        analyze_document,
-        client=di_client,
-        file_path=file_path,
-        model_id=config.azure_di_model,
+    """Convenience wrapper — creates a DocumentProcessor and processes a file."""
+    processor = DocumentProcessor(
+        config=config, graph=graph, max_concurrent_pages=max_concurrent_pages,
     )
-
-    total_pages = len(ocr_result.pages)
-    log.info(
-        "document_processor_ocr_complete",
-        total_pages=total_pages,
-        overall_confidence=round(ocr_result.overall_confidence, 3),
-    )
-
-    if total_pages == 0:
-        raise ValueError(f"Azure DI returned 0 pages for {file_path}")
-
-    # --- 3. Build graph (once, reused for all pages) ---
-    if graph is None:
-        graph = build_classification_graph(config, use_checkpointer=False)
-
-    # --- 4. Classify each page in parallel ---
-    semaphore = asyncio.Semaphore(max_concurrent_pages)
-
-    async def classify_page(page_idx: int, page_text: str) -> PageClassificationResult:
-        async with semaphore:
-            log.info("classifying_page", page_index=page_idx)
-
-            # Create state with pre-populated OCR text (skips OCR node)
-            state = create_initial_state(
-                document_id=f"{doc_id}_p{page_idx}",
-                file_path=str(file_path),
-                file_type=file_type,
-            )
-            state["azure_ocr_text"] = page_text
-
-            # Each page needs a unique thread_id for the graph
-            thread_config = {"configurable": {"thread_id": f"{doc_id}_p{page_idx}"}}
-            final_state = await graph.ainvoke(state, config=thread_config)
-
-            return _extract_page_result(page_idx, final_state, page_text)
-
-    # Build tasks for all pages
-    tasks = []
-    for ocr_page in ocr_result.pages:
-        tasks.append(classify_page(ocr_page.page_index, ocr_page.text))
-
-    page_results = await asyncio.gather(*tasks)
-
-    # Sort by page index
-    page_results = sorted(page_results, key=lambda p: p.page_index)
-
-    elapsed_ms = int((time.monotonic() - start_time) * 1000)
-
-    log.info(
-        "document_processor_complete",
-        total_pages=total_pages,
-        classified_pages=len(page_results),
-        elapsed_ms=elapsed_ms,
-    )
-
-    return MultiPageResult(
-        document_id=doc_id,
-        file_name=file_path.name,
-        total_pages=total_pages,
-        pages=list(page_results),
-        processing_time_ms=elapsed_ms,
-    )
+    return await processor.process_file(file_path)
 
 
 async def process_text_as_page(
@@ -167,36 +270,6 @@ async def process_text_as_page(
     config: AppConfig | None = None,
     graph: CompiledStateGraph | None = None,
 ) -> MultiPageResult:
-    """Process raw text as a single-page document (for testing / notebook use).
-
-    This is a convenience function that wraps text into the same
-    MultiPageResult format without needing a file on disk.
-    """
-    start_time = time.monotonic()
-
-    if config is None:
-        config = AppConfig()  # type: ignore[call-arg]
-
-    if graph is None:
-        graph = build_classification_graph(config, use_checkpointer=False)
-
-    state = create_initial_state(
-        document_id="text_input",
-        file_path="<text_input>",
-        file_type="text",
-    )
-    state["azure_ocr_text"] = text
-
-    thread_config = {"configurable": {"thread_id": "text_input"}}
-    final_state = await graph.ainvoke(state, config=thread_config)
-
-    page_result = _extract_page_result(0, final_state, text)
-    elapsed_ms = int((time.monotonic() - start_time) * 1000)
-
-    return MultiPageResult(
-        document_id="text_input",
-        file_name="<text_input>",
-        total_pages=1,
-        pages=[page_result],
-        processing_time_ms=elapsed_ms,
-    )
+    """Convenience wrapper — creates a DocumentProcessor and processes text."""
+    processor = DocumentProcessor(config=config, graph=graph)
+    return await processor.process_text(text)
