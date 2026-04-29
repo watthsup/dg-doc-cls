@@ -1,15 +1,15 @@
-"""LLM adapter — Azure OpenAI Foundry with Pydantic structured output.
+"""LLM adapter — document classifier with structured output.
 
-Single call returns LLMOutput (classification + hospital_name).
-Uses AzureChatOpenAI with with_structured_output() for guaranteed schema.
+Supports both Standard OpenAI and Azure OpenAI (Entra ID).
+Falls back to Azure if OPENAI_API_KEY is not set.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-from langchain_openai import AzureChatOpenAI
+import structlog
+from langchain_openai import AzureChatOpenAI, ChatOpenAI
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -23,30 +23,43 @@ from schemas.models import LLMOutput
 if TYPE_CHECKING:
     from config.settings import AppConfig
 
+logger = structlog.get_logger()
+
 
 class LLMClassifier:
-    """Document classifier using Azure OpenAI with Pydantic structured output.
+    """Document classifier using OpenAI with Pydantic structured output.
 
     Single call returns both classification and hospital name.
-    Structured output uses Azure OpenAI's tool-calling to enforce the schema.
-    Authenticates using Entra ID (DefaultAzureCredential).
+    Automatically selects Standard OpenAI or Azure OpenAI based on config.
     """
 
     def __init__(self, config: AppConfig) -> None:
         self._config = config
-        
-        token_provider = get_bearer_token_provider(
-            DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
-        )
-        
-        self._llm = AzureChatOpenAI(
-            azure_deployment=config.azure_openai_deployment,
-            azure_endpoint=config.azure_openai_endpoint,
-            azure_ad_token_provider=token_provider,
-            api_version=config.azure_openai_api_version,
-            temperature=config.llm_temperature,
-            timeout=config.llm_timeout,
-        )
+
+        if config.openai_api_key:
+            logger.info("llm_classifier_using_openai", model=config.openai_model)
+            self._llm = ChatOpenAI(
+                model=config.openai_model,
+                api_key=config.openai_api_key,
+                temperature=config.llm_temperature,
+                timeout=config.llm_timeout,
+            )
+        else:
+            from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+
+            logger.info("llm_classifier_using_azure", deployment=config.azure_openai_deployment)
+            token_provider = get_bearer_token_provider(
+                DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
+            )
+            self._llm = AzureChatOpenAI(
+                azure_deployment=config.azure_openai_deployment,
+                azure_endpoint=config.azure_openai_endpoint,
+                azure_ad_token_provider=token_provider,
+                api_version=config.azure_openai_api_version,
+                temperature=config.llm_temperature,
+                timeout=config.llm_timeout,
+            )
+
         # Structured output: LLM returns valid LLMOutput JSON
         self._chain = CLASSIFICATION_PROMPT | self._llm.with_structured_output(
             LLMOutput
