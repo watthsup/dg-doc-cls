@@ -94,7 +94,7 @@ async def _run_batch(
             "file_name", "page_index", "root_code", "sub_code",
             "root_score", "root_margin", "root_conf_pct",
             "sub_score", "sub_margin", "sub_conf_pct",
-            "hospital_name", "is_uncertain", "processing_time_ms", "trail"
+            "hospital_name", "is_uncertain", "processing_time_ms", "trail", "ocr_text"
         ])
 
     semaphore = asyncio.Semaphore(max_concurrency)
@@ -127,7 +127,7 @@ async def _run_batch(
                                 f"{p.root_score:.4f}", f"{p.root_margin:.4f}", f"{p.root_confidence_pct:.1f}",
                                 f"{p.sub_score:.4f}", f"{p.sub_margin:.4f}", f"{p.sub_confidence_pct:.1f}",
                                 p.hospital_name or "", p.is_uncertain, result.processing_time_ms,
-                                " -> ".join(p.execution_trail)
+                                " -> ".join(p.execution_trail), p.ocr_text
                             ])
                     results_count += 1
 
