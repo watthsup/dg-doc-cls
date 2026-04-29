@@ -81,11 +81,29 @@ async def _run_batch(
     # Build graph once, reuse for all documents
     graph = build_classification_graph(config, use_checkpointer=False)
 
+    output_dir.mkdir(parents=True, exist_ok=True)
+    jsonl_file = output_dir / "batch_results.jsonl"
+    csv_file = output_dir / "batch_results.csv"
+    error_file = output_dir / "errors.jsonl"
+
+    # Initialize CSV header
+    import csv
+    with open(csv_file, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "file_name", "page_index", "root_code", "sub_code",
+            "root_score", "root_margin", "root_conf_pct",
+            "sub_score", "sub_margin", "sub_conf_pct",
+            "hospital_name", "is_uncertain", "processing_time_ms", "trail"
+        ])
+
     semaphore = asyncio.Semaphore(max_concurrency)
-    results: list[MultiPageResult] = []
-    errors: list[dict] = []
+    write_lock = asyncio.Lock()
+    results_count = 0
+    errors_count = 0
 
     async def _process_one(doc) -> None:
+        nonlocal results_count, errors_count
         async with semaphore:
             try:
                 result = await process_document_pages(
@@ -93,15 +111,39 @@ async def _run_batch(
                     config=config,
                     graph=graph,
                 )
-                results.append(result)
+                
+                # Incremental write to files
+                async with write_lock:
+                    # 1. Append to JSONL
+                    with open(jsonl_file, "a", encoding="utf-8") as f:
+                        f.write(result.model_dump_json() + "\n")
+                    
+                    # 2. Append to CSV
+                    with open(csv_file, "a", newline="", encoding="utf-8") as f:
+                        writer = csv.writer(f)
+                        for p in result.pages:
+                            writer.writerow([
+                                result.file_name, p.page_index + 1, p.root_code, p.sub_code,
+                                f"{p.root_score:.4f}", f"{p.root_margin:.4f}", f"{p.root_confidence_pct:.1f}",
+                                f"{p.sub_score:.4f}", f"{p.sub_margin:.4f}", f"{p.sub_confidence_pct:.1f}",
+                                p.hospital_name or "", p.is_uncertain, result.processing_time_ms,
+                                " -> ".join(p.execution_trail)
+                            ])
+                    results_count += 1
+
                 click.echo(f"  ✅ {result.file_name}: {result.summary}")
+
             except Exception as e:
                 error_info = {
                     "document_id": doc.document_id,
                     "file_name": doc.file_path.name,
                     "error": str(e),
                 }
-                errors.append(error_info)
+                async with write_lock:
+                    with open(error_file, "a", encoding="utf-8") as f:
+                        f.write(json.dumps(error_info) + "\n")
+                    errors_count += 1
+                
                 log.error("document_failed", **error_info)
                 click.echo(f"  ❌ {doc.file_path.name}: {e}")
 
@@ -110,57 +152,16 @@ async def _run_batch(
 
     elapsed_s = time.monotonic() - start_time
 
-    # --- Output ---
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # 1. Save JSONL (Full detailed data)
-    jsonl_file = output_dir / "batch_results.jsonl"
-    with open(jsonl_file, "w") as f:
-        for r in results:
-            f.write(r.model_dump_json() + "\n")
-    click.echo(f"\n✅ Detailed JSONL written to: {jsonl_file}")
-
-    # 2. Save CSV (Flattened per-page results for spreadsheet analysis)
-    import csv
-    csv_file = output_dir / "batch_results.csv"
-    with open(csv_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        # Header
-        writer.writerow([
-            "file_name", "page_index", "root_code", "sub_code",
-            "root_score", "root_margin", "root_conf_pct",
-            "sub_score", "sub_margin", "sub_conf_pct",
-            "hospital_name", "is_uncertain", "processing_time_ms", "trail"
-        ])
-        # Rows
-        for r in results:
-            for p in r.pages:
-                writer.writerow([
-                    r.file_name, p.page_index + 1, p.root_code, p.sub_code,
-                    f"{p.root_score:.4f}", f"{p.root_margin:.4f}", f"{p.root_confidence_pct:.1f}",
-                    f"{p.sub_score:.4f}", f"{p.sub_margin:.4f}", f"{p.sub_confidence_pct:.1f}",
-                    p.hospital_name or "", p.is_uncertain, r.processing_time_ms,
-                    " -> ".join(p.execution_trail)
-                ])
-    click.echo(f"✅ Summary CSV written to:    {csv_file}")
-
-    # 3. Save Errors
-    if errors:
-        error_file = output_dir / "errors.jsonl"
-        with open(error_file, "w") as f:
-            for e in errors:
-                f.write(json.dumps(e) + "\n")
-        click.echo(f"❌ Errors written to:         {error_file}")
-
     click.echo(f"\n{'='*50}")
     click.echo("BATCH PROCESSING COMPLETE")
     click.echo(f"{'='*50}")
     click.echo(f"Total:      {len(documents)}")
-    click.echo(f"Successful: {len(results)}")
-    click.echo(f"Failed:     {len(errors)}")
+    click.echo(f"Successful: {results_count}")
+    click.echo(f"Failed:     {errors_count}")
     click.echo(f"Time:       {elapsed_s:.1f}s")
+    click.echo(f"Results:    {output_dir}")
 
-    if errors:
+    if errors_count > 0:
         sys.exit(1)
 
 
