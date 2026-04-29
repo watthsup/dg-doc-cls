@@ -41,23 +41,22 @@ def _run_quality_assessment(display_images: list) -> list:
     return assessments
 
 
-def _render_quality_panel(qa, st_container):
-    """Render quality scores in a Streamlit container."""
-    with st_container:
-        st.markdown("### 📊 Image Quality")
-        col_q1, col_q2, col_q3 = st.columns(3)
+def _render_quality_panel(qa):
+    """Render quality scores inline."""
+    st.markdown("### 📊 Image Quality")
+    col_q1, col_q2, col_q3 = st.columns(3)
 
-        blur_color = "green" if qa.blur_score >= 0.3 else "red"
-        contrast_color = "green" if qa.contrast_score >= 0.3 else "red"
-        skew_color = "green" if abs(qa.skew_angle) <= 5.0 else "red"
+    blur_color = "green" if qa.blur_score >= 0.3 else "red"
+    contrast_color = "green" if qa.contrast_score >= 0.3 else "red"
+    skew_color = "green" if abs(qa.skew_angle) <= 5.0 else "red"
 
-        col_q1.markdown(f"**Blur:** :{blur_color}[{qa.blur_score:.2f}]")
-        col_q2.markdown(f"**Contrast:** :{contrast_color}[{qa.contrast_score:.2f}]")
-        col_q3.markdown(f"**Skew:** :{skew_color}[{qa.skew_angle:.1f}°]")
+    col_q1.markdown(f"**Blur:** :{blur_color}[{qa.blur_score:.2f}]")
+    col_q2.markdown(f"**Contrast:** :{contrast_color}[{qa.contrast_score:.2f}]")
+    col_q3.markdown(f"**Skew:** :{skew_color}[{qa.skew_angle:.1f}°]")
 
-        if qa.issues:
-            for issue in qa.issues:
-                st.warning(issue)
+    if qa.issues:
+        for issue in qa.issues:
+            st.warning(issue)
 
 
 if uploaded_file is not None:
@@ -157,7 +156,7 @@ if uploaded_file is not None:
 
                 # Image Quality
                 if page.page_index < len(quality_results):
-                    _render_quality_panel(quality_results[page.page_index], st)
+                    _render_quality_panel(quality_results[page.page_index])
 
                 with st.expander("Show Extracted Text"):
                     st.text(page.ocr_text)
@@ -229,7 +228,7 @@ if uploaded_file is not None:
 
                 # Image Quality
                 if page_idx < len(quality_results):
-                    _render_quality_panel(quality_results[page_idx], st)
+                    _render_quality_panel(quality_results[page_idx])
 
                 with st.expander("Show Extracted Text"):
                     st.text(ocr_page.text)
