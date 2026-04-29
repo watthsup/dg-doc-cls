@@ -20,7 +20,7 @@ import structlog
 
 from config import AppConfig, setup_logging
 from graph.builder import build_classification_graph
-from pipeline.document_processor import process_document_pages
+from pipeline.document import process_document_pages
 from pipeline.filesystem import scan_documents
 from schemas.multi_page import MultiPageResult
 

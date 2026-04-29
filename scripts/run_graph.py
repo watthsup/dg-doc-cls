@@ -19,7 +19,7 @@ import click
 import structlog
 
 from config import AppConfig, setup_logging
-from pipeline.document_processor import process_document_pages
+from pipeline.document import process_document_pages
 
 
 @click.command()

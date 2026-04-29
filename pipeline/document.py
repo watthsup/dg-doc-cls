@@ -1,190 +1,275 @@
-"""Per-document classification pipeline.
+"""Document Processor — splits multi-page files and classifies each page independently.
+
+Designed as a reusable module for integration into CLI scripts, APIs, 
+Streamlit apps, or any service that needs document classification.
+
+Usage:
+    processor = DocumentProcessor(config)
+    result = await processor.process_file(Path("doc.pdf"))
+    result = await processor.process_text("some OCR text")
 
 Flow:
-  1. Load document → PIL Images (all pages)
-  2. OpenCV quality assessment per page → list of image_quality
-  3. Send file to Azure DI → OCR text + word confidence for all pages
-  4. Concurrently process each page:
-     a. merge_quality(image_quality, ocr_page)
-     b. LLM classification
-     c. Keyword score
-     d. Calculate page confidence
-     e. Return PageResult
-  5. Aggregate PageResults to determine document-level highest confidence result
-  6. Return DocumentResult
+  1. Load file and detect type (PDF / TIF / Image)
+  2. Run Azure DI OCR on the entire file (single API call, page-level results)
+  3. For each page: invoke the LangGraph pipeline with that page's OCR text
+  4. Collect per-page results into a MultiPageResult
+
+Design decisions:
+  - Single Azure DI call for the whole file (cheaper, Azure returns page-level text)
+  - Pages are classified in parallel via asyncio.gather with a configurable semaphore
+  - The graph's OCR node is skipped by pre-populating azure_ocr_text in the state
 """
 
 from __future__ import annotations
 
 import asyncio
 import time
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
-from confidence.calculator import ConfidenceWeights, calculate_confidence
-from ocr.engine import analyze_document, create_di_client, images_to_numpy, load_document_images
-from ocr.quality import assess_multi_page_quality, merge_quality
-from schemas.models import (
-    ClassificationResult,
-    DocumentInput,
-    DocumentResult,
-    PageResult,
-    ProcessingMetadata,
-    QualityAssessment,
-    SignalScores,
-)
+from config.settings import AppConfig
+from graph.builder import build_classification_graph
+from graph.state import create_initial_state
+from ocr.engine import analyze_document, create_di_client
+from pipeline.filesystem import detect_file_type, generate_document_id
+from schemas.multi_page import MultiPageResult, PageClassificationResult
 
 if TYPE_CHECKING:
     from azure.ai.documentintelligence import DocumentIntelligenceClient
-
-    from classifier.llm import LLMClassifier
-    from config.settings import AppConfig
+    from langgraph.graph.state import CompiledStateGraph
 
 logger = structlog.get_logger()
 
 
-async def process_document(
-    document: DocumentInput,
-    classifier: LLMClassifier,
-    config: AppConfig,
-    di_client: DocumentIntelligenceClient | None = None,
-) -> DocumentResult:
-    """Process all pages of a document through the classification pipeline."""
-    start_time = time.monotonic()
-    log = logger.bind(document_id=document.document_id)
+class DocumentProcessor:
+    """Reusable document classification module.
 
-    if di_client is None:
-        di_client = create_di_client(config)
+    Holds shared resources (config, graph, OCR client) so they are
+    created once and reused across multiple calls. Thread-safe for
+    concurrent async usage via semaphore control.
 
-    # --- 1. Load pages locally (PIL Images for quality assessment) ---
-    log.info("loading_document", file_type=document.file_type)
-    all_images = await asyncio.to_thread(
-        load_document_images,
-        file_path=document.file_path,
-        file_type=document.file_type,
-    )
-    total_pages = len(all_images)
+    Args:
+        config: Application configuration. Created from env if None.
+        graph: Pre-built LangGraph. Built on first use if None.
+        max_concurrent_pages: Max pages to classify in parallel per document.
+    """
 
-    # --- 2. Extract doc_type from filename ---
-    filename_doc_type = None
-    parts = document.file_path.stem.split("_")
-    if len(parts) >= 3:
-        filename_doc_type = parts[2]
+    def __init__(
+        self,
+        config: AppConfig | None = None,
+        graph: CompiledStateGraph | None = None,
+        max_concurrent_pages: int = 5,
+    ) -> None:
+        self._config = config or AppConfig()  # type: ignore[call-arg]
+        self._graph = graph
+        self._max_concurrent_pages = max_concurrent_pages
+        self._di_client: DocumentIntelligenceClient | None = None
 
-    # --- 3. OpenCV quality assessment (per page, local) ---
-    numpy_images = images_to_numpy(all_images)
-    image_qualities = await asyncio.to_thread(
-        assess_multi_page_quality,
-        images=numpy_images,
-        blur_threshold=config.blur_threshold,
-        contrast_min=config.contrast_min,
-    )
+    @property
+    def config(self) -> AppConfig:
+        return self._config
 
-    # --- 4. Azure DI OCR (all pages) ---
-    log.info("starting_ocr", total_pages=total_pages)
-    # Use asyncio.to_thread to prevent the synchronous API call from blocking the event loop
-    ocr_result = await asyncio.to_thread(
-        analyze_document,
-        client=di_client,
-        file_path=document.file_path,
-        model_id=config.azure_di_model,
-        page_indices=None,  # Process all pages
-    )
-    log.info(
-        "ocr_complete",
-        text_length=len(ocr_result.merged_text),
-        ocr_confidence=round(ocr_result.overall_confidence, 3),
-        pages_returned=len(ocr_result.pages),
-    )
+    @property
+    def graph(self) -> CompiledStateGraph:
+        """Lazy-build the classification graph on first access."""
+        if self._graph is None:
+            self._graph = build_classification_graph(
+                self._config, use_checkpointer=False,
+            )
+        return self._graph
 
-    ocr_pages_map = {p.page_index: p for p in ocr_result.pages}
+    @property
+    def di_client(self) -> DocumentIntelligenceClient:
+        """Lazy-create the Azure DI client on first access."""
+        if self._di_client is None:
+            self._di_client = create_di_client(self._config)
+        return self._di_client
 
-    # --- 5. Concurrent per-page processing ---
-    async def process_single_page(page_idx: int) -> PageResult | None:
-        if page_idx not in ocr_pages_map:
-            return None
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
-        ocr_page = ocr_pages_map[page_idx]
-        image_quality = (
-            image_qualities[page_idx]
-            if page_idx < len(image_qualities)
-            else QualityAssessment()
+    async def process_file(self, file_path: Path) -> MultiPageResult:
+        """Process a multi-page document, classifying each page independently.
+
+        Args:
+            file_path: Path to the document file (PDF, TIF, or image).
+
+        Returns:
+            MultiPageResult with per-page classification details.
+        """
+        start_time = time.monotonic()
+        log = logger.bind(file_path=str(file_path))
+
+        # --- 1. Validate file ---
+        file_type = detect_file_type(file_path)
+        if not file_type:
+            raise ValueError(f"Unsupported file type: {file_path.suffix}")
+
+        doc_id = generate_document_id(file_path)
+        log = log.bind(document_id=doc_id)
+
+        # --- 2. Run Azure DI OCR on entire file (single API call) ---
+        log.info("document_processor_ocr_start")
+        ocr_result = await asyncio.to_thread(
+            analyze_document,
+            client=self.di_client,
+            file_path=file_path,
+            model_id=self._config.azure_di_model,
         )
 
-        # Merge quality
-        quality = merge_quality(image_quality, ocr_page)
-
-        # LLM Classification
-        llm_output = await classifier.classify(ocr_page.text)
-
-        # Confidence
-        signals = SignalScores(
-            ocr_confidence=ocr_page.mean_confidence / 100.0,
-            quality_score=quality.quality_score,
-        )
-        confidence = calculate_confidence(
-            signals,
-            weights=ConfidenceWeights(
-                ocr=config.ocr_weight,
-                quality=config.quality_weight,
-            ),
-        )
-
-        return PageResult(
-            page_index=page_idx,
-            classification=ClassificationResult(
-                primary_class=llm_output.primary_class,
-                subcategory=llm_output.subcategory,
-                hospital_name=llm_output.hospital_name,
-            ),
-            confidence=confidence,
-            signals=signals,
-            quality_assessment=quality,
-            ocr_text=ocr_page.text,
-        )
-
-    log.info("classifying_pages_concurrently")
-    page_tasks = [process_single_page(i) for i in range(total_pages)]
-    page_results_raw = await asyncio.gather(*page_tasks)
-
-    # Filter out missing pages
-    page_results = [r for r in page_results_raw if r is not None]
-
-    if not page_results:
-        raise ValueError(f"No pages could be processed for document {document.document_id}")
-
-    # --- 6. Aggregate to DocumentResult ---
-    # Majority voting for hospital name
-    from collections import Counter
-    hospital_names = [
-        p.classification.hospital_name 
-        for p in page_results 
-        if p.classification.hospital_name and p.classification.hospital_name.strip() and p.classification.hospital_name.lower() != "unknown"
-    ]
-    doc_hospital_name = None
-    if hospital_names:
-        doc_hospital_name = Counter(hospital_names).most_common(1)[0][0]
-
-    elapsed_ms = int((time.monotonic() - start_time) * 1000)
-
-    result = DocumentResult(
-        document_id=document.document_id,
-        file_name=document.file_path.name,
-        filename_doc_type=filename_doc_type,
-        hospital_name=doc_hospital_name,
-        pages=page_results,
-        processing_metadata=ProcessingMetadata(
-            pages_used=[p.page_index for p in page_results],
+        total_pages = len(ocr_result.pages)
+        log.info(
+            "document_processor_ocr_complete",
             total_pages=total_pages,
+            overall_confidence=round(ocr_result.overall_confidence, 3),
+        )
+
+        if total_pages == 0:
+            raise ValueError(f"Azure DI returned 0 pages for {file_path}")
+
+        # --- 3. Classify each page in parallel ---
+        semaphore = asyncio.Semaphore(self._max_concurrent_pages)
+
+        async def classify_page(
+            page_idx: int, page_text: str,
+        ) -> PageClassificationResult:
+            async with semaphore:
+                log.info("classifying_page", page_index=page_idx)
+                return await self._classify_text(
+                    text=page_text,
+                    document_id=f"{doc_id}_p{page_idx}",
+                    file_path=str(file_path),
+                    file_type=file_type,
+                    page_index=page_idx,
+                )
+
+        tasks = [
+            classify_page(p.page_index, p.text)
+            for p in ocr_result.pages
+        ]
+        page_results = await asyncio.gather(*tasks)
+        page_results = sorted(page_results, key=lambda p: p.page_index)
+
+        elapsed_ms = int((time.monotonic() - start_time) * 1000)
+        log.info(
+            "document_processor_complete",
+            total_pages=total_pages,
+            classified_pages=len(page_results),
+            elapsed_ms=elapsed_ms,
+        )
+
+        return MultiPageResult(
+            document_id=doc_id,
+            file_name=file_path.name,
+            total_pages=total_pages,
+            pages=list(page_results),
             processing_time_ms=elapsed_ms,
-        ),
+        )
+
+    async def process_text(self, text: str) -> MultiPageResult:
+        """Process raw text as a single-page document.
+
+        Useful for testing, notebooks, or when OCR text is already available.
+        """
+        start_time = time.monotonic()
+
+        page_result = await self._classify_text(
+            text=text,
+            document_id="text_input",
+            file_path="<text_input>",
+            file_type="text",
+            page_index=0,
+        )
+
+        elapsed_ms = int((time.monotonic() - start_time) * 1000)
+        return MultiPageResult(
+            document_id="text_input",
+            file_name="<text_input>",
+            total_pages=1,
+            pages=[page_result],
+            processing_time_ms=elapsed_ms,
+        )
+
+    # ------------------------------------------------------------------
+    # Internal
+    # ------------------------------------------------------------------
+
+    async def _classify_text(
+        self,
+        text: str,
+        document_id: str,
+        file_path: str,
+        file_type: str,
+        page_index: int,
+    ) -> PageClassificationResult:
+        """Run a single page's text through the LangGraph classification pipeline."""
+        state = create_initial_state(
+            document_id=document_id,
+            file_path=file_path,
+            file_type=file_type,
+        )
+        state["azure_ocr_text"] = text
+
+        thread_config = {"configurable": {"thread_id": document_id}}
+        final_state = await self.graph.ainvoke(state, config=thread_config)
+
+        return _extract_page_result(page_index, final_state, text)
+
+
+# ----------------------------------------------------------------------
+# Helper
+# ----------------------------------------------------------------------
+
+
+def _extract_page_result(
+    page_index: int,
+    state: dict[str, Any],
+    ocr_text: str,
+) -> PageClassificationResult:
+    """Convert a completed GraphState dict into a PageClassificationResult."""
+    return PageClassificationResult(
+        page_index=page_index,
+        root_code=state.get("root_code", ""),
+        sub_code=state.get("sub_code", ""),
+        root_margin=state.get("root_margin", 0.0),
+        sub_margin=state.get("sub_margin", 0.0),
+        root_confidence_pct=state.get("root_confidence_pct", 0.0),
+        sub_confidence_pct=state.get("sub_confidence_pct", 0.0),
+        hospital_name=state.get("hospital_name"),
+        is_uncertain=state.get("is_uncertain", False),
+        execution_trail=state.get("execution_trail", []),
+        ocr_text=ocr_text,
+        root_logprobs=state.get("root_logprobs"),
+        sub_logprobs=state.get("sub_logprobs"),
     )
 
-    log.info(
-        "document_complete",
-        total_pages=total_pages,
-        processed_pages=len(page_results),
-        elapsed_ms=elapsed_ms,
+
+# ----------------------------------------------------------------------
+# Convenience functions (backward-compatible with scripts/notebooks)
+# ----------------------------------------------------------------------
+
+
+async def process_document_pages(
+    file_path: Path,
+    config: AppConfig | None = None,
+    graph: CompiledStateGraph | None = None,
+    max_concurrent_pages: int = 5,
+) -> MultiPageResult:
+    """Convenience wrapper — creates a DocumentProcessor and processes a file."""
+    processor = DocumentProcessor(
+        config=config, graph=graph, max_concurrent_pages=max_concurrent_pages,
     )
-    return result
+    return await processor.process_file(file_path)
+
+
+async def process_text_as_page(
+    text: str,
+    config: AppConfig | None = None,
+    graph: CompiledStateGraph | None = None,
+) -> MultiPageResult:
+    """Convenience wrapper — creates a DocumentProcessor and processes text."""
+    processor = DocumentProcessor(config=config, graph=graph)
+    return await processor.process_text(text)
