@@ -230,6 +230,9 @@ def _extract_page_result(
     ocr_text: str,
 ) -> PageClassificationResult:
     """Convert a completed GraphState dict into a PageClassificationResult."""
+    root_lp = state.get("root_logprobs")
+    sub_lp = state.get("sub_logprobs")
+
     return PageClassificationResult(
         page_index=page_index,
         root_code=state.get("root_code", ""),
@@ -238,12 +241,14 @@ def _extract_page_result(
         sub_margin=state.get("sub_margin", 0.0),
         root_confidence_pct=state.get("root_confidence_pct", 0.0),
         sub_confidence_pct=state.get("sub_confidence_pct", 0.0),
+        root_score=root_lp.get("top1_logprob", 0.0) if root_lp else 0.0,
+        sub_score=sub_lp.get("top1_logprob", 0.0) if sub_lp else 0.0,
         hospital_name=state.get("hospital_name"),
         is_uncertain=state.get("is_uncertain", False),
         execution_trail=state.get("execution_trail", []),
         ocr_text=ocr_text,
-        root_logprobs=state.get("root_logprobs"),
-        sub_logprobs=state.get("sub_logprobs"),
+        root_logprobs=root_lp,
+        sub_logprobs=sub_lp,
     )
 
 

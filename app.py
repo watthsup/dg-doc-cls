@@ -131,7 +131,7 @@ if uploaded_file is not None:
 
                 with col_root:
                     root_color = "green" if page.root_margin >= config.margin_threshold else "red"
-                    st.markdown(f"**Root:** `{page.root_code}`")
+                    st.markdown(f"**Root:** `{page.root_code}` (Score: `{page.root_score:.3f}`)")
                     st.markdown(f"Margin: :{root_color}[{page.root_margin:.3f}]")
                     st.markdown(f"Confidence: {page.root_confidence_pct:.1f}%")
                     if page.root_logprobs:
@@ -144,7 +144,7 @@ if uploaded_file is not None:
                 with col_sub:
                     if page.sub_code:
                         sub_color = "green" if page.sub_margin >= config.margin_threshold else "red"
-                        st.markdown(f"**Sub:** `{page.sub_code}`")
+                        st.markdown(f"**Sub:** `{page.sub_code}` (Score: `{page.sub_score:.3f}`)")
                         st.markdown(f"Margin: :{sub_color}[{page.sub_margin:.3f}]")
                         st.markdown(f"Confidence: {page.sub_confidence_pct:.1f}%")
                         if page.sub_logprobs:

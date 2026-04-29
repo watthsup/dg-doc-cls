@@ -60,9 +60,9 @@ def main(
 
         for page in result.pages:
             click.echo(f"\n--- Page {page.page_index + 1} ---")
-            click.echo(f"  Classification: {page.root_code} → {page.sub_code}")
-            click.echo(f"  Root Margin:    {page.root_margin:.3f} (Confidence: {page.root_confidence_pct:.1f}%)")
-            click.echo(f"  Sub Margin:     {page.sub_margin:.3f} (Confidence: {page.sub_confidence_pct:.1f}%)")
+            click.echo(f"  Root: {page.root_code} (Score: {page.root_score:.3f}, Margin: {page.root_margin:.3f}, Conf: {page.root_confidence_pct:.1f}%)")
+            if page.sub_code:
+                click.echo(f"  Sub:  {page.sub_code} (Score: {page.sub_score:.3f}, Margin: {page.sub_margin:.3f}, Conf: {page.sub_confidence_pct:.1f}%)")
 
             if page.hospital_name:
                 click.echo(f"  Hospital:       {page.hospital_name}")
