@@ -40,13 +40,11 @@ from schemas.multi_page import MultiPageResult
 )
 @click.option("--max-concurrency", type=int, default=3, help="Max documents to process concurrently")
 @click.option("--verbose", is_flag=True, default=False)
-@click.option("--json", "as_json", is_flag=True, default=False, help="Output as JSONL")
 def main(
     input_dir: Path,
     output_dir: Path,
     max_concurrency: int,
     verbose: bool,
-    as_json: bool,
 ) -> None:
     """Classify all documents in a directory using the LangGraph pipeline."""
     config = AppConfig()  # type: ignore[call-arg]
@@ -67,7 +65,7 @@ def main(
 
     click.echo(f"Found {len(documents)} documents. Processing...")
 
-    asyncio.run(_run_batch(documents, config, output_dir, max_concurrency, as_json))
+    asyncio.run(_run_batch(documents, config, output_dir, max_concurrency))
 
 
 async def _run_batch(
@@ -75,7 +73,6 @@ async def _run_batch(
     config: AppConfig,
     output_dir: Path,
     max_concurrency: int,
-    as_json: bool,
 ) -> None:
     """Run batch processing with controlled concurrency."""
     log = structlog.get_logger()
@@ -116,19 +113,44 @@ async def _run_batch(
     # --- Output ---
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    if as_json:
-        output_file = output_dir / "batch_results.jsonl"
-        with open(output_file, "w") as f:
-            for r in results:
-                f.write(r.model_dump_json() + "\n")
-        click.echo(f"\nResults written to: {output_file}")
+    # 1. Save JSONL (Full detailed data)
+    jsonl_file = output_dir / "batch_results.jsonl"
+    with open(jsonl_file, "w") as f:
+        for r in results:
+            f.write(r.model_dump_json() + "\n")
+    click.echo(f"\n✅ Detailed JSONL written to: {jsonl_file}")
 
+    # 2. Save CSV (Flattened per-page results for spreadsheet analysis)
+    import csv
+    csv_file = output_dir / "batch_results.csv"
+    with open(csv_file, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        # Header
+        writer.writerow([
+            "file_name", "page_index", "root_code", "sub_code",
+            "root_score", "root_margin", "root_conf_pct",
+            "sub_score", "sub_margin", "sub_conf_pct",
+            "hospital_name", "is_uncertain", "processing_time_ms", "trail"
+        ])
+        # Rows
+        for r in results:
+            for p in r.pages:
+                writer.writerow([
+                    r.file_name, p.page_index + 1, p.root_code, p.sub_code,
+                    f"{p.root_score:.4f}", f"{p.root_margin:.4f}", f"{p.root_confidence_pct:.1f}",
+                    f"{p.sub_score:.4f}", f"{p.sub_margin:.4f}", f"{p.sub_confidence_pct:.1f}",
+                    p.hospital_name or "", p.is_uncertain, r.processing_time_ms,
+                    " -> ".join(p.execution_trail)
+                ])
+    click.echo(f"✅ Summary CSV written to:    {csv_file}")
+
+    # 3. Save Errors
     if errors:
         error_file = output_dir / "errors.jsonl"
         with open(error_file, "w") as f:
             for e in errors:
                 f.write(json.dumps(e) + "\n")
-        click.echo(f"Errors written to: {error_file}")
+        click.echo(f"❌ Errors written to:         {error_file}")
 
     click.echo(f"\n{'='*50}")
     click.echo("BATCH PROCESSING COMPLETE")

@@ -29,10 +29,16 @@ from pipeline.document import process_document_pages
 )
 @click.option("--verbose", is_flag=True, default=False)
 @click.option("--json", "as_json", is_flag=True, default=False, help="Output as raw JSON")
+@click.option(
+    "--output",
+    type=click.Path(path_type=Path),
+    help="Save result to this file (JSON)",
+)
 def main(
     file_path: Path,
     verbose: bool,
     as_json: bool,
+    output: Path | None = None,
 ) -> None:
     """Classify a document using the LangGraph hierarchical pipeline.
 
@@ -77,7 +83,16 @@ def main(
 
         if result.has_uncertain_pages:
             click.echo("\n⚠️  Some pages were flagged as uncertain. Review recommended.")
-            sys.exit(2)
+
+    # --- Save to file if requested ---
+    if output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        with open(output, "w") as f:
+            f.write(result.model_dump_json(indent=2))
+        click.echo(f"\n✅ Result saved to: {output}")
+
+    if result.has_uncertain_pages:
+        sys.exit(2)
 
 
 if __name__ == "__main__":
