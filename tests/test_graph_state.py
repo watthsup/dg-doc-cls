@@ -24,16 +24,16 @@ class TestClassificationCode:
     """Test the 3-letter code enum."""
 
     def test_all_codes_exist(self) -> None:
-        """2 root + 2 med-sub + 3 nonmed-sub + 1 shared = 8 codes."""
-        assert len(ClassificationCode) == 8
+        """2 root + 3 med-sub + 3 nonmed-sub + 1 shared = 9 codes."""
+        assert len(ClassificationCode) == 9
 
     def test_root_codes(self) -> None:
         assert ClassificationCode.MED == "MED"
         assert ClassificationCode.NON == "NON"
 
     def test_medical_sub_codes(self) -> None:
-        """Medical scope: LAB, CHK, and OTH (shared fallback)."""
-        med_codes = {"LAB", "CHK", "OTH"}
+        """Medical scope: LAB, CHK, CLI, and OTH (shared fallback)."""
+        med_codes = {"LAB", "CHK", "CLI", "OTH"}
         actual = {c.value for c in VALID_MED_SUB_CODES}
         assert actual == med_codes
 
@@ -131,8 +131,10 @@ class TestLogprobAnalysis:
         data = {
             "top1_token": "MED",
             "top1_logprob": -0.01,
+            "top1_prob_pct": 99.0,
             "top2_token": "NON",
             "top2_logprob": -4.5,
+            "top2_prob_pct": 1.0,
             "margin_score": 4.49,
             "confidence_pct": 99.0,
         }
@@ -164,7 +166,7 @@ class TestGraphState:
         assert state["document_id"] == "test_001"
         assert state["file_path"] == "/tmp/test.pdf"
         assert state["file_type"] == "pdf"
-        assert state["root_code"] is None
+        assert state.get("root_code") is None
         assert state["sub_code"] is None
         assert state["is_uncertain"] is False
         assert state["requires_human_review"] is False
@@ -172,7 +174,6 @@ class TestGraphState:
 
     def test_initial_state_margins_are_zero(self) -> None:
         state = create_initial_state("id", "/path", "pdf")
-        assert state["root_margin"] == 0.0
-        assert state["sub_margin"] == 0.0
+        assert state["is_uncertain"] is False
         assert state["root_confidence_pct"] == 0.0
         assert state["sub_confidence_pct"] == 0.0

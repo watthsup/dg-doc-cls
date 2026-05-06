@@ -78,8 +78,9 @@ async def _run_batch(
     log = structlog.get_logger()
     start_time = time.monotonic()
 
-    # Build graph once, reuse for all documents
-    graph = build_classification_graph(config, use_checkpointer=False)
+    # --- 1. Setup Runner ---
+    from graph.builder import ClassificationRunner
+    runner = ClassificationRunner.from_env()
 
     output_dir.mkdir(parents=True, exist_ok=True)
     jsonl_file = output_dir / "batch_results.jsonl"
@@ -108,11 +109,10 @@ async def _run_batch(
         nonlocal results_count, errors_count
         async with semaphore:
             try:
-                result = await process_document_pages(
-                    file_path=doc.file_path,
-                    config=config,
-                    graph=graph,
-                )
+                state = await runner.run(str(doc.file_path))
+                if "error" in state:
+                    raise RuntimeError(state["error"])
+                result = state["final_result"]
                 
                 # Incremental write to files
                 async with write_lock:
@@ -157,7 +157,10 @@ async def _run_batch(
                 log.error("document_failed", **error_info)
                 click.echo(f"  ❌ {doc.file_path.name}: {e}")
 
-    tasks = [_process_one(doc) for doc in documents]
+    # --- 2. Process documents ---
+    tasks = []
+    for doc in documents:
+        tasks.append(_process_one(doc))
     await asyncio.gather(*tasks)
 
     elapsed_s = time.monotonic() - start_time

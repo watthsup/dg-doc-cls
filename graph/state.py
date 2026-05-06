@@ -1,57 +1,59 @@
-"""LangGraph agent state definition for hierarchical classification.
-
-The GraphState TypedDict is the single source of truth for all data
-flowing through the classification pipeline. It is persisted via
-the LangGraph checkpointer for async HITL resumption.
-"""
-
 from __future__ import annotations
 
-from typing import Any, TypedDict
+import operator
+from typing import Annotated, Any, TypedDict
+
+from schemas.multi_page import PageClassificationResult
+
+
+def merge_dicts(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]:
+    """Merge two dictionaries, keeping all keys."""
+    return {**left, **right}
 
 
 class GraphState(TypedDict, total=False):
-    """Stateful schema for the hierarchical classification graph.
+    """LangGraph state schema for hierarchical classification.
 
-    All fields are optional (total=False) so nodes can incrementally
-    populate the state as execution progresses through the pipeline.
+    Designed for Native Map/Reduce using langgraph.types.Send.
+    - Fields with Annotated[..., operator.add] aggregate results from parallel branches.
     """
 
-    # --- Stage 0: Document Identity & Azure Ingestion ---
-    document_id: str
-    file_path: str                     # Serializable string path
-    file_type: str                     # "pdf" or "image"
-    azure_ocr_text: str                # Full text from Azure DI
-    ocr_metadata: dict[str, Any]       # Layout, Tables, Confidence
-    ocr_confidence: float              # Overall OCR confidence (0-1)
+    # --- Inputs ---
+    document_id: Annotated[str, lambda x, y: y or x]
+    file_path: Annotated[str, lambda x, y: y or x]
+    file_type: Annotated[str, lambda x, y: y or x]
+    azure_ocr_text: Annotated[str, lambda x, y: y or x]  # Full document text or page text
 
-    # --- Stage 1: Root Classification (MED/NON) ---
-    root_code: str | None              # "MED" or "NON"
-    root_logprobs: dict[str, Any] | None  # Raw logprob data from LLM
-    root_margin: float                 # Margin score for root decision
-    root_confidence_pct: float         # exp(logprob) * 100
+    # --- Intermediate Result (Shared across branches if needed) ---
+    ocr_result: Annotated[Any, lambda x, y: y or x]  # Raw Azure DI result if doing OCR inside graph
 
-    # --- Stage 2: Sub-Classification ---
-    sub_code: str | None               # "LAB", "CHK", "IMG", etc.
-    sub_logprobs: dict[str, Any] | None
-    sub_margin: float
-    sub_confidence_pct: float
+    # --- Processing Context ---
+    root_code: Annotated[str | None, lambda x, y: y or x]
+    sub_code: Annotated[str | None, lambda x, y: y or x]
+    is_uncertain: Annotated[bool, lambda x, y: y or x]
+    requires_human_review: Annotated[bool, lambda x, y: y or x]
+    uncertainty_stage: Annotated[str | None, lambda x, y: y or x]
+    hospital_name: Annotated[str | None, lambda x, y: y or x]
+    root_confidence_pct: Annotated[float, lambda x, y: y or x]
+    sub_confidence_pct: Annotated[float, lambda x, y: y or x]
+    page_index: Annotated[int, lambda x, y: y or x]
+    root_margin: Annotated[float, lambda x, y: y or x]
+    sub_margin: Annotated[float, lambda x, y: y or x]
+    root_score: Annotated[float, lambda x, y: y or x]
+    sub_score: Annotated[float, lambda x, y: y or x]
+    root_logprobs: Annotated[dict | None, lambda x, y: y or x]
 
-    # --- Control Flow & HITL ---
-    is_uncertain: bool                 # True if any margin < threshold
-    requires_human_review: bool        # Breakpoint trigger status
-    human_override_code: str | None    # Code selected by human reviewer
-    uncertainty_stage: str | None      # "root" or "sub" — which stage is uncertain
+    # --- Results Aggregation (Map/Reduce) ---
+    # Stores results from individual page extraction branches
+    page_results: Annotated[list[PageClassificationResult], operator.add]
 
-    # --- Extracted Metadata ---
-    hospital_name: str | None
+    # --- Audit & Metrics ---
+    execution_trail: Annotated[list[str], operator.add]
+    node_metrics: Annotated[dict[str, dict[str, Any]], merge_dicts]
 
-    # --- Quality Data (passed through from OpenCV stage) ---
-    quality_assessment: dict[str, Any] | None
-
-    # --- Audit ---
-    execution_trail: list[str]         # Ordered list of nodes visited
-    node_metrics: dict[str, dict[str, Any]] # {node_name: {"latency_ms": 123, "input_tokens": 10, ...}}
+    # --- Final Aggregate Output ---
+    final_result: Any  # MultiPageResult
+    error: str
 
 
 def create_initial_state(
@@ -59,28 +61,21 @@ def create_initial_state(
     file_path: str,
     file_type: str,
 ) -> GraphState:
-    """Create a fresh GraphState with sensible defaults."""
+    """Initialize the graph state with defaults to support both single and multi-page flows."""
     return GraphState(
         document_id=document_id,
         file_path=file_path,
         file_type=file_type,
         azure_ocr_text="",
-        ocr_metadata={},
-        ocr_confidence=0.0,
         root_code=None,
-        root_logprobs=None,
-        root_margin=0.0,
-        root_confidence_pct=0.0,
         sub_code=None,
-        sub_logprobs=None,
-        sub_margin=0.0,
-        sub_confidence_pct=0.0,
         is_uncertain=False,
         requires_human_review=False,
-        human_override_code=None,
         uncertainty_stage=None,
         hospital_name=None,
-        quality_assessment=None,
+        root_confidence_pct=0.0,
+        sub_confidence_pct=0.0,
+        page_results=[],
         execution_trail=[],
         node_metrics={},
     )
