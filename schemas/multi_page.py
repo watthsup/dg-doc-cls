@@ -7,6 +7,8 @@ from the LangGraph pipeline.
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -33,6 +35,9 @@ class PageClassificationResult(BaseModel):
     # Detailed logprob data (Top-N distribution)
     root_logprobs: dict | None = Field(default=None)
     sub_logprobs: dict | None = Field(default=None)
+    
+    # Latency and token usage tracking
+    node_metrics: dict[str, dict[str, Any]] | None = Field(default=None)
 
 
 class MultiPageResult(BaseModel):
@@ -43,6 +48,7 @@ class MultiPageResult(BaseModel):
     total_pages: int
     pages: list[PageClassificationResult] = Field(default_factory=list)
     processing_time_ms: int = Field(default=0)
+    pipeline_metrics: dict[str, Any] = Field(default_factory=dict)
 
     @property
     def has_uncertain_pages(self) -> bool:

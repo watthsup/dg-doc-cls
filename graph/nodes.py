@@ -15,6 +15,7 @@ Design decisions:
 from __future__ import annotations
 
 import asyncio
+import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -131,12 +132,27 @@ async def ocr_ingestion_node(state: GraphState) -> dict[str, Any]:
     document_id = state.get("document_id", "unknown")
     log = logger.bind(document_id=document_id)
     log.info("graph_ocr_ingestion_start")
+    start_time = time.perf_counter()
 
     # Fast-path for testing: skip OCR if text is provided
     if state.get("azure_ocr_text"):
         log.info("graph_ocr_ingestion_skipped", reason="text_provided")
+        
+        # Check if we were passed a shared OCR latency (from document-level OCR)
+        existing_metrics = state.get("node_metrics", {}).get("ocr_ingestion", {})
+        shared_latency = existing_metrics.get("latency_ms", 0)
+        
+        latency_ms = shared_latency if shared_latency > 0 else int((time.perf_counter() - start_time) * 1000)
+        
+        metrics = state.get("node_metrics", {}).copy()
+        metrics["ocr_ingestion"] = {
+            "latency_ms": latency_ms, 
+            "skipped": True,
+            "is_shared_ocr": existing_metrics.get("is_shared_ocr", False)
+        }
         return {
             "execution_trail": state.get("execution_trail", []) + ["ocr_ingestion (skipped)"],
+            "node_metrics": metrics,
         }
 
     config = _load_config()
@@ -161,6 +177,10 @@ async def ocr_ingestion_node(state: GraphState) -> dict[str, Any]:
         pages=len(ocr_result.pages),
     )
 
+    latency_ms = int((time.perf_counter() - start_time) * 1000)
+    metrics = state.get("node_metrics", {}).copy()
+    metrics["ocr_ingestion"] = {"latency_ms": latency_ms}
+
     return {
         "azure_ocr_text": ocr_result.merged_text,
         "ocr_metadata": {
@@ -169,6 +189,7 @@ async def ocr_ingestion_node(state: GraphState) -> dict[str, Any]:
         },
         "ocr_confidence": ocr_result.overall_confidence,
         "execution_trail": state.get("execution_trail", []) + ["ocr_ingestion"],
+        "node_metrics": metrics,
     }
 
 
@@ -186,6 +207,7 @@ async def root_router_node(state: GraphState) -> dict[str, Any]:
     """
     log = logger.bind(document_id=state.get("document_id", "unknown"))
     log.info("graph_root_router_start")
+    start_time = time.perf_counter()
 
     config = _load_config()
     llm = _create_llm(config, logprobs=True)
@@ -217,6 +239,16 @@ async def root_router_node(state: GraphState) -> dict[str, Any]:
         is_uncertain=is_uncertain,
     )
 
+    latency_ms = int((time.perf_counter() - start_time) * 1000)
+    usage = response.response_metadata.get("token_usage", {})
+    metrics = state.get("node_metrics", {}).copy()
+    metrics["root_router"] = {
+        "latency_ms": latency_ms,
+        "prompt_tokens": usage.get("prompt_tokens", 0),
+        "completion_tokens": usage.get("completion_tokens", 0),
+        "total_tokens": usage.get("total_tokens", 0),
+    }
+
     return {
         "root_code": root_code,
         "root_logprobs": {
@@ -232,6 +264,7 @@ async def root_router_node(state: GraphState) -> dict[str, Any]:
         "is_uncertain": is_uncertain,
         "uncertainty_stage": "root" if is_uncertain else None,
         "execution_trail": state.get("execution_trail", []) + ["root_router"],
+        "node_metrics": metrics,
     }
 
 
@@ -247,6 +280,7 @@ async def med_specialist_node(state: GraphState) -> dict[str, Any]:
     """
     log = logger.bind(document_id=state.get("document_id", "unknown"))
     log.info("graph_med_specialist_start")
+    start_time = time.perf_counter()
 
     config = _load_config()
     ocr_text = state.get("azure_ocr_text", "")
@@ -279,6 +313,16 @@ async def med_specialist_node(state: GraphState) -> dict[str, Any]:
         hospital_name=hospital_name,
     )
 
+    latency_ms = int((time.perf_counter() - start_time) * 1000)
+    usage = response.response_metadata.get("token_usage", {})
+    metrics = state.get("node_metrics", {}).copy()
+    metrics["med_specialist"] = {
+        "latency_ms": latency_ms,
+        "prompt_tokens": usage.get("prompt_tokens", 0),
+        "completion_tokens": usage.get("completion_tokens", 0),
+        "total_tokens": usage.get("total_tokens", 0),
+    }
+
     return {
         "sub_code": sub_code,
         "sub_logprobs": {
@@ -296,6 +340,7 @@ async def med_specialist_node(state: GraphState) -> dict[str, Any]:
         "uncertainty_stage": "sub" if is_uncertain else state.get("uncertainty_stage"),
         "hospital_name": hospital_name,
         "execution_trail": state.get("execution_trail", []) + ["med_specialist"],
+        "node_metrics": metrics,
     }
 
 
@@ -308,6 +353,7 @@ async def nonmed_specialist_node(state: GraphState) -> dict[str, Any]:
     """Sub-classify a non-medical document into its specific document type."""
     log = logger.bind(document_id=state.get("document_id", "unknown"))
     log.info("graph_nonmed_specialist_start")
+    start_time = time.perf_counter()
 
     config = _load_config()
     ocr_text = state.get("azure_ocr_text", "")
@@ -337,6 +383,16 @@ async def nonmed_specialist_node(state: GraphState) -> dict[str, Any]:
         is_uncertain=is_uncertain,
     )
 
+    latency_ms = int((time.perf_counter() - start_time) * 1000)
+    usage = response.response_metadata.get("token_usage", {})
+    metrics = state.get("node_metrics", {}).copy()
+    metrics["nonmed_specialist"] = {
+        "latency_ms": latency_ms,
+        "prompt_tokens": usage.get("prompt_tokens", 0),
+        "completion_tokens": usage.get("completion_tokens", 0),
+        "total_tokens": usage.get("total_tokens", 0),
+    }
+
     return {
         "sub_code": sub_code,
         "sub_logprobs": {
@@ -353,6 +409,7 @@ async def nonmed_specialist_node(state: GraphState) -> dict[str, Any]:
         "uncertainty_stage": "sub" if is_uncertain else state.get("uncertainty_stage"),
         "hospital_name": None,  # Non-medical docs don't have a hospital name
         "execution_trail": state.get("execution_trail", []) + ["nonmed_specialist"],
+        "node_metrics": metrics,
     }
 
 

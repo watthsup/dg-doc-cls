@@ -63,6 +63,11 @@ def main(
         click.echo(f"Doc ID:      {result.document_id}")
         click.echo(f"Total Pages: {result.total_pages}")
         click.echo(f"Time:        {result.processing_time_ms}ms")
+        
+        # Show Document-level OCR latency
+        ocr_lat = result.pipeline_metrics.get("azure_di_ocr_latency_ms", 0)
+        if ocr_lat > 0:
+            click.echo(f"OCR Latency: {ocr_lat}ms")
 
         for page in result.pages:
             click.echo(f"\n--- Page {page.page_index + 1} ---")
@@ -75,6 +80,16 @@ def main(
 
             if page.is_uncertain:
                 click.echo(f"  ⚠️  UNCERTAIN — flagged for human review")
+
+            # Display Node Metrics (Latency & Tokens)
+            if page.node_metrics:
+                click.echo(f"  Metrics:")
+                for node, m in page.node_metrics.items():
+                    perf = f"{m.get('latency_ms', 0)}ms"
+                    tokens = ""
+                    if "total_tokens" in m:
+                        tokens = f" (Tokens: {m.get('total_tokens')} [In:{m.get('prompt_tokens')}/Out:{m.get('completion_tokens')}])"
+                    click.echo(f"    - {node:20}: {perf}{tokens}")
 
             click.echo(f"  Trail: {' → '.join(page.execution_trail)}")
 

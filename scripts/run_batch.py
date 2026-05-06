@@ -94,7 +94,9 @@ async def _run_batch(
             "file_name", "page_index", "root_code", "sub_code",
             "root_score", "root_margin", "root_conf_pct",
             "sub_score", "sub_margin", "sub_conf_pct",
-            "hospital_name", "is_uncertain", "processing_time_ms", "trail", "ocr_text"
+            "hospital_name", "is_uncertain", "processing_time_ms", 
+            "ocr_latency_ms", "prompt_tokens", "completion_tokens", "total_tokens",
+            "node_metrics", "trail", "ocr_text"
         ])
 
     semaphore = asyncio.Semaphore(max_concurrency)
@@ -122,12 +124,20 @@ async def _run_batch(
                     with open(csv_file, "a", newline="", encoding="utf-8") as f:
                         writer = csv.writer(f)
                         for p in result.pages:
+                            # Calculate total tokens for this page
+                            metrics = p.node_metrics or {}
+                            p_tokens = sum(m.get("prompt_tokens", 0) for m in metrics.values())
+                            c_tokens = sum(m.get("completion_tokens", 0) for m in metrics.values())
+                            t_tokens = sum(m.get("total_tokens", 0) for m in metrics.values())
+
                             writer.writerow([
                                 result.file_name, p.page_index + 1, p.root_code, p.sub_code,
                                 f"{p.root_score:.4f}", f"{p.root_margin:.4f}", f"{p.root_confidence_pct:.1f}",
                                 f"{p.sub_score:.4f}", f"{p.sub_margin:.4f}", f"{p.sub_confidence_pct:.1f}",
                                 p.hospital_name or "", p.is_uncertain, result.processing_time_ms,
-                                " -> ".join(p.execution_trail), p.ocr_text
+                                result.pipeline_metrics.get("azure_di_ocr_latency_ms", 0),
+                                p_tokens, c_tokens, t_tokens,
+                                json.dumps(metrics), " -> ".join(p.execution_trail), p.ocr_text
                             ])
                     results_count += 1
 

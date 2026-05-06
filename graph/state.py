@@ -51,6 +51,7 @@ class GraphState(TypedDict, total=False):
 
     # --- Audit ---
     execution_trail: list[str]         # Ordered list of nodes visited
+    node_metrics: dict[str, dict[str, Any]] # {node_name: {"latency_ms": 123, "input_tokens": 10, ...}}
 
 
 def create_initial_state(
@@ -81,4 +82,5 @@ def create_initial_state(
         hospital_name=None,
         quality_assessment=None,
         execution_trail=[],
+        node_metrics={},
     )

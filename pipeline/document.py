@@ -113,12 +113,14 @@ class DocumentProcessor:
 
         # --- 2. Run Azure DI OCR on entire file (single API call) ---
         log.info("document_processor_ocr_start")
+        ocr_start_time = time.monotonic()
         ocr_result = await asyncio.to_thread(
             analyze_document,
             client=self.di_client,
             file_path=file_path,
             model_id=self._config.azure_di_model,
         )
+        ocr_latency_ms = int((time.monotonic() - ocr_start_time) * 1000)
 
         total_pages = len(ocr_result.pages)
         log.info(
@@ -144,6 +146,7 @@ class DocumentProcessor:
                     file_path=str(file_path),
                     file_type=file_type,
                     page_index=page_idx,
+                    ocr_latency_ms=ocr_latency_ms,
                 )
 
         tasks = [
@@ -167,6 +170,9 @@ class DocumentProcessor:
             total_pages=total_pages,
             pages=list(page_results),
             processing_time_ms=elapsed_ms,
+            pipeline_metrics={
+                "azure_di_ocr_latency_ms": ocr_latency_ms,
+            },
         )
 
     async def process_text(self, text: str) -> MultiPageResult:
@@ -182,6 +188,7 @@ class DocumentProcessor:
             file_path="<text_input>",
             file_type="text",
             page_index=0,
+            ocr_latency_ms=0,
         )
 
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
@@ -204,6 +211,7 @@ class DocumentProcessor:
         file_path: str,
         file_type: str,
         page_index: int,
+        ocr_latency_ms: int = 0,
     ) -> PageClassificationResult:
         """Run a single page's text through the LangGraph classification pipeline."""
         state = create_initial_state(
@@ -212,6 +220,12 @@ class DocumentProcessor:
             file_type=file_type,
         )
         state["azure_ocr_text"] = text
+        
+        # Pass the document-wide OCR latency so nodes can report it
+        state["node_metrics"]["ocr_ingestion"] = {
+            "latency_ms": ocr_latency_ms,
+            "is_shared_ocr": True
+        }
 
         thread_config = {"configurable": {"thread_id": document_id}}
         final_state = await self.graph.ainvoke(state, config=thread_config)
@@ -249,6 +263,7 @@ def _extract_page_result(
         ocr_text=ocr_text,
         root_logprobs=root_lp,
         sub_logprobs=sub_lp,
+        node_metrics=state.get("node_metrics"),
     )
 
 
