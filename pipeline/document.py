@@ -31,29 +31,19 @@ class DocumentProcessor:
         """Process a file: OCR followed by hierarchical classification."""
         doc_id = f"{file_path.stem}_{uuid.uuid4().hex[:8]}"
         
-        result_state = await self._runner.run(
+        return await self._runner.run(
             file_path=str(file_path),
             document_id=doc_id
         )
-        
-        if "error" in result_state:
-            raise RuntimeError(result_state["error"])
-            
-        return result_state["final_result"]
 
     async def process_text(self, text: str) -> MultiPageResult:
         """Classify pre-provided text without OCR."""
         doc_id = f"text_{uuid.uuid4().hex[:8]}"
         
-        result_state = await self._runner.run(
+        return await self._runner.run(
             ocr_text=text,
             document_id=doc_id
         )
-        
-        if "error" in result_state:
-            raise RuntimeError(result_state["error"])
-            
-        return result_state["final_result"]
 
 
 # ----------------------------------------------------------------------

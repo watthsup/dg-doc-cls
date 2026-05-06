@@ -109,10 +109,7 @@ async def _run_batch(
         nonlocal results_count, errors_count
         async with semaphore:
             try:
-                state = await runner.run(str(doc.file_path))
-                if "error" in state:
-                    raise RuntimeError(state["error"])
-                result = state["final_result"]
+                result = await runner.run(file_path=str(doc.file_path))
                 
                 # Incremental write to files
                 async with write_lock:

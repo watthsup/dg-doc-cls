@@ -13,7 +13,7 @@ log = structlog.get_logger()
 
 def make_root_router_node(llm_factory: Any):
     """Factory for root router node."""
-    def root_router_node(state: GraphState) -> GraphState:
+    def root_router_node(state: GraphState) -> dict[str, Any]:
         text = state.get("azure_ocr_text", "")
         if not text:
             return {"error": "Empty text for router"}
@@ -32,17 +32,15 @@ def make_root_router_node(llm_factory: Any):
         
         # Analyze logprobs
         analysis = analyze_logprobs(response.response_metadata, ["MED", "NON"])
-        
-        # Extract token usage
         usage = response.response_metadata.get("token_usage", {})
-        is_uncertain = analysis.margin_score < 1.5
         
+        # Update branch state
         return {
             "root_code": analysis.top1_token,
             "root_margin": analysis.margin_score,
             "root_confidence_pct": analysis.confidence_pct,
             "root_score": analysis.top1_logprob,
-            "is_uncertain": is_uncertain,
+            "is_uncertain": analysis.margin_score < 1.5,
             "root_logprobs": analysis.model_dump(),
             "execution_trail": ["root_router"],
             "node_metrics": {
