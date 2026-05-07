@@ -10,9 +10,13 @@ from pathlib import Path
 
 import streamlit as st
 
-from config import AppConfig
-from graph.builder import build_classification_graph
-from schemas.models import (
+from langgraph.checkpoint.sqlite import SqliteSaver
+from src.infrastructure.config.settings import AppConfig
+from src.adapters.orchestration.doc_cls.builder import build_classification_graph, ClassificationDependencies
+from src.adapters.outbound.ocr.client import create_di_client
+from src.adapters.outbound.llm.client import get_llm
+from src.application.use_cases.classify_page_service import ClassifyPageService
+from src.domain.models.classification import (
     CODE_TO_PRIMARY,
     CODE_TO_SUBCATEGORY,
     VALID_MED_SUB_CODES,
@@ -56,8 +60,22 @@ if not thread_ids:
 
 st.markdown(f"**{len(thread_ids)}** document(s) in checkpoint database.")
 
+# Build dependencies for the graph
+di_client = create_di_client(config)
+def llm_factory(logprobs: bool = False):
+    return get_llm(config, logprobs=logprobs)
+classifier = ClassifyPageService(llm_factory=llm_factory)
+deps = ClassificationDependencies(
+    di_client=di_client,
+    ocr_model_id=config.azure_di_model,
+    classifier=classifier,
+)
+
+# Initialize checkpointer
+checkpointer = SqliteSaver.from_conn_string(str(checkpoint_path))
+
 # Build graph for state inspection
-graph = build_classification_graph(config)
+graph = build_classification_graph(deps, checkpointer=checkpointer)
 
 for thread_id in thread_ids:
     thread_config = {"configurable": {"thread_id": thread_id}}
