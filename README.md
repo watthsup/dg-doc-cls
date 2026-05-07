@@ -52,21 +52,22 @@ Root
 ## Architecture
 
 ```
-config/         → Pydantic Settings (Azure config, thresholds)
-schemas/        → All Pydantic models + classification codes + enums
-ocr/            → Azure Document Intelligence + quality assessment
-classifier/     → V1 LLM classifier (direct structured output)
-confidence/     → Composite confidence scoring
-graph/          → V2 LangGraph pipeline
-  ├── state.py          GraphState TypedDict
-  ├── nodes.py          OCR ingestion, Root Router, Specialists, HITL gateway
-  ├── logprob_analyzer  Reliability Engine (margin calculation)
-  ├── prompts.py        Per-node prompt templates
-  └── builder.py        Graph construction + SQLite checkpointer
-pipeline/       → Per-document + batch orchestration (V1 & V2)
-exporters/      → JSONL/CSV output
-pages/          → Streamlit review page (HITL adjudication)
-scripts/        → CLI entry points
+src/infrastructure/  → Frameworks & drivers (Config, Telemetry)
+src/adapters/        → Interface adapters
+  inbound/             → CLI, API, UI routes (Streamlit)
+  outbound/            → LLM and OCR clients
+  orchestration/       → LangGraph nodes, edges, state
+  presenters/          → CSV exporters
+src/application/     → Use cases & ports
+  ports/               → Input/Output Protocol interfaces
+  use_cases/           → ClassifyPageService, Pipeline workflows
+  contracts/           → LLM payload schemas
+  prompts/             → LLM prompt templates
+src/domain/          → Entities & pure policies
+  models/              → Domain data classes and enums
+  services/            → Logprob analyzer, Confidence calculator
+src/shared/          → Pure utilities
+src/bootstrap.py     → Composition root
 ```
 
 ---
@@ -83,8 +84,8 @@ scripts/        → CLI entry points
 ### Setup
 
 ```bash
-conda activate doc_cls
-pip install -e ".[dev]"
+uv venv
+uv sync --all-extras
 cp .env.example .env
 # Edit .env with your Azure credentials
 ```
@@ -93,39 +94,37 @@ cp .env.example .env
 
 ## Running
 
-### V2 — LangGraph Pipeline (recommended)
+### Unified CLI (Recommended)
 
-#### Single document
+After installation, the `docguru` command is available. Alternatively, you can run it via `python -m src.main`.
+
+#### Process Documents (Classify)
+Classify one or more documents and export results to CSV/JSONL.
+
 ```bash
-python scripts/run_graph.py path/to/document.pdf
-python scripts/run_graph.py path/to/document.pdf --verbose
-python scripts/run_graph.py path/to/document.pdf --json
+# Explicit call (recommended)
+uv run python -m src.main process --file path/to/doc.pdf --type doc_cls
+
+# Vanilla mode (Direct LLM)
+uv run python -m src.main process --file path/to/doc.pdf --type vanilla
+
+# Using entry point
+uv run docguru process --dir ./documents --out ./results --concurrency 5
+
+# Debug mode
+uv run docguru process --file doc.pdf --verbose
 ```
 
-#### Batch (directory)
-```bash
-python scripts/run_graph_batch.py ./documents/
-python scripts/run_graph_batch.py ./documents/ --output results_v2.jsonl --max-concurrency 3
-```
+#### Generate Interactive Reports
+Run classification and generate self-contained HTML diagnostic reports for visual review.
 
-### V1 — Direct LLM (legacy)
-
-#### Single document
 ```bash
-python scripts/run_single.py path/to/document.pdf
-python scripts/run_single.py path/to/document.pdf --json
-```
-
-#### Batch
-```bash
-python scripts/run_batch.py --input-dir ./documents --output-dir ./results
-python scripts/run_batch.py --input-dir ./documents --output-dir ./output \
-  --output-format both --max-concurrency 10 --max-pages 3 --verbose
+uv run python -m src.main gen-report --dir ./documents --out ./html_reports --type doc_cls
 ```
 
 ### Streamlit UI
 ```bash
-streamlit run app.py
+uv run streamlit run app.py
 ```
 - **Main page** — Upload a document; toggle V1/V2 pipeline in the sidebar
 - **Review page** — Resolve HITL-flagged documents from the checkpoint database
@@ -197,13 +196,13 @@ Each document produces a `DocumentResult`:
 
 ```bash
 # All tests (no Azure credentials required)
-pytest tests/ -v
+uv run pytest tests/ -v
 
 # Graph-specific tests only
-pytest tests/test_logprob_analyzer.py tests/test_graph_state.py tests/test_graph_adapter.py -v
+uv run pytest tests/test_logprob_analyzer.py tests/test_graph_state.py -v
 
 # With coverage
-pytest tests/ -v --cov=.
+uv run pytest tests/ -v --cov=.
 ```
 
 Current: **131 tests, all passing**.
@@ -214,41 +213,26 @@ Current: **131 tests, all passing**.
 
 ```
 docguru-doc-cls/
-├── config/
-│   ├── settings.py          Pydantic Settings (Azure + HITL config)
-│   └── logging.py           structlog configuration
-├── schemas/
-│   └── models.py            All Pydantic models, ClassificationCode enum, mappings
-├── ocr/
-│   ├── engine.py            Azure Document Intelligence client
-│   ├── page_sampler.py      Page selection strategy
-│   └── quality.py           Image quality assessment (OpenCV)
-├── classifier/              V1 direct LLM classifier
-│   ├── llm.py
-│   └── prompts.py
-├── confidence/
-│   └── calculator.py        Weighted composite confidence
-├── graph/                   V2 LangGraph pipeline
-│   ├── __init__.py
-│   ├── state.py             GraphState TypedDict + factory
-│   ├── logprob_analyzer.py  Reliability Engine (margin score)
-│   ├── prompts.py           Per-node prompt templates
-│   ├── nodes.py             Node functions (OCR, Router, Specialists, HITL)
-│   └── builder.py           Graph construction + SQLite checkpointer
-├── pipeline/
-│   ├── document.py          V1 per-document pipeline
-│   ├── batch.py             V1 concurrent batch runner
-│   ├── graph_adapter.py     GraphState → PageResult/DocumentResult adapter
-│   └── filesystem.py        Directory scanner + file-type detection
-├── exporters/
-│   └── writer.py            JSONL/CSV export
-├── pages/
-│   └── review.py            Streamlit HITL review page
-├── scripts/
-│   ├── run_single.py        V1 single-doc CLI
-│   ├── run_batch.py         V1 batch CLI
-│   ├── run_graph.py         V2 single-doc CLI (LangGraph)
-│   └── run_graph_batch.py   V2 batch CLI (LangGraph)
-├── app.py                   Streamlit main app (V1/V2 toggle)
-└── tests/                   131 unit tests
+├── src/
+│   ├── domain/               Entities & pure policies
+│   │   ├── models/           DocumentType, LogprobAnalysis, etc.
+│   │   └── services/         Logprob analyzer, confidence calculator
+│   ├── application/          Use cases & ports
+│   │   ├── contracts/        LLM output schemas
+│   │   ├── ports/            Input/Output interfaces
+│   │   ├── prompts/          Classification prompt templates
+│   │   └── use_cases/        ClassifyPageService, pipelines
+│   ├── adapters/             Interface adapters
+│   │   ├── inbound/          CLI and UI
+│   │   ├── outbound/         LLM and OCR clients
+│   │   ├── orchestration/    LangGraph nodes, edges, state
+│   │   └── presenters/       CSV and JSONL exporters
+│   ├── infrastructure/       Frameworks & drivers
+│   │   ├── config/           Pydantic settings
+│   │   └── telemetry/        structlog setup
+│   └── bootstrap.py          Composition root
+├── tests/                    Unit tests
+├── scripts/                  CLI entry points
+├── pages/                    Streamlit HITL review page
+└── app.py                    Streamlit main app
 ```

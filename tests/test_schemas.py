@@ -14,23 +14,25 @@ import json
 import pytest
 from pydantic import ValidationError
 
-from schemas.models import (
+from src.domain.models.document import (
     BatchResult,
     ClassificationResult,
     DocumentError,
     DocumentInput,
     DocumentResult,
-    LLMOutput,
     OCRPageResult,
     OCRResult,
     OCRWordResult,
-    PrimaryClass,
     ProcessingMetadata,
     QualityAssessment,
     SignalScores,
+)
+from src.domain.models.classification import (
+    PrimaryClass,
     Subcategory,
     VALID_SUBCATEGORIES,
 )
+from src.application.contracts.llm_output import LLMOutput
 
 
 # ---------------------------------------------------------------------------

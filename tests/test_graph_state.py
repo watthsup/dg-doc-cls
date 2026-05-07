@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from graph.state import GraphState, create_initial_state
-from schemas.models import (
+from src.adapters.orchestration.doc_cls.state import GraphState, create_initial_state
+from src.domain.models.classification import (
     CODE_TO_PRIMARY,
     CODE_TO_SUBCATEGORY,
     PRIMARY_TO_CODE,
@@ -14,10 +14,10 @@ from schemas.models import (
     VALID_NONMED_SUB_CODES,
     VALID_ROOT_CODES,
     ClassificationCode,
-    LogprobAnalysis,
     PrimaryClass,
     Subcategory,
 )
+from src.domain.models.metrics import LogprobAnalysis
 
 
 class TestClassificationCode:

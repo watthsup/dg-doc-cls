@@ -2,7 +2,7 @@
 
 import pytest
 
-from ocr.page_sampler import sample_pages
+from src.adapters.outbound.ocr.page_sampler import sample_pages
 
 
 class TestSamplePages:

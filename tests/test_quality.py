@@ -1,11 +1,11 @@
 import numpy as np
 import pytest
-from ocr.quality import (
+from src.adapters.outbound.ocr.quality import (
     assess_image_quality,
     assess_multi_page_quality,
     merge_quality,
 )
-from schemas.models import OCRPageResult, OCRResult, QualityAssessment
+from src.domain.models.document import OCRPageResult, OCRResult, QualityAssessment
 
 
 def _make_sharp_text_image() -> np.ndarray:
@@ -50,7 +50,7 @@ class TestAssessImageQuality:
 
     def test_quality_score_is_mean_of_signals(self) -> None:
         result = assess_image_quality(_make_sharp_text_image())
-        from ocr.quality import _compute_skew_score
+        from src.adapters.outbound.ocr.quality import _compute_skew_score
         skew_s = _compute_skew_score(result.skew_angle)
         expected = (result.blur_score + result.contrast_score + skew_s) / 3.0
         assert abs(result.quality_score - expected) < 0.001

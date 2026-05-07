@@ -6,11 +6,12 @@ import numpy as np
 import streamlit as st
 import structlog
 
-from config import AppConfig, setup_logging
-from ocr.engine import analyze_document, create_di_client, load_document_images
-from ocr.quality import assess_image_quality
-from pipeline.document import DocumentProcessor
-from pipeline.filesystem import detect_file_type, generate_document_id
+from src.infrastructure.config.settings import AppConfig
+from src.infrastructure.telemetry.logging import setup_logging
+from src.adapters.outbound.ocr.client import analyze_document, create_di_client, load_document_images
+from src.adapters.outbound.ocr.quality import assess_image_quality
+from src.application.use_cases.process_document import DocumentProcessor
+from src.application.use_cases.filesystem import detect_file_type, generate_document_id
 
 st.set_page_config(page_title="DocGuru Classifier", layout="wide")
 
@@ -174,7 +175,7 @@ if uploaded_file is not None:
     # V1 — Direct LLM (Single-hop, uses LLMClassifier)
     # ===================================================================
     else:
-        from classifier.llm import LLMClassifier
+        from src.adapters.outbound.llm.client import LLMClassifier
 
         with st.spinner("🤖 Direct LLM classification (single-hop)..."):
             try:
