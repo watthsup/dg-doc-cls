@@ -6,7 +6,7 @@ import math
 
 import pytest
 
-from graph.logprob_analyzer import analyze_logprobs
+from src.domain.services.logprob_analyzer import analyze_logprobs
 
 
 class TestAnalyzeLogprobs:

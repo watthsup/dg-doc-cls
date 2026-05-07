@@ -2,8 +2,8 @@
 
 import pytest
 
-from confidence.calculator import ConfidenceWeights, calculate_confidence
-from schemas.models import SignalScores
+from src.domain.services.confidence_calculator import ConfidenceWeights, calculate_confidence
+from src.domain.models.document import SignalScores
 
 
 class TestConfidenceWeights:
