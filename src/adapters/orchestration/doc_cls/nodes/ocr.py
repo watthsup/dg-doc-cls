@@ -17,7 +17,7 @@ def make_ocr_node(di_client: Any, model_id: str) -> NodeFn:
 
         # Skip OCR if text is already provided
         if ocr_text:
-            from schemas.models import OCRResult, OCRPageResult
+            from src.domain.models.document import OCRResult, OCRPageResult
             dummy_page = OCRPageResult(page_index=0, text=ocr_text, mean_confidence=100.0)
             dummy_result = OCRResult(merged_text=ocr_text, pages=[dummy_page], overall_confidence=1.0)
             return {
@@ -32,7 +32,7 @@ def make_ocr_node(di_client: Any, model_id: str) -> NodeFn:
         start_time = time.perf_counter()
         try:
             from pathlib import Path
-            from ocr.engine import analyze_document
+            from src.adapters.outbound.ocr.client import analyze_document
             ocr_result = analyze_document(di_client, Path(file_path), model_id)
             latency_ms = int((time.perf_counter() - start_time) * 1000)
             
