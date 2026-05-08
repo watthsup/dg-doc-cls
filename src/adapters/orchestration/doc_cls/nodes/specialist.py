@@ -4,9 +4,9 @@ import time
 from typing import Any
 import structlog
 
-from graph.state import GraphState
-from graph.prompts import MED_SPECIALIST_SYSTEM, NONMED_SPECIALIST_SYSTEM, SPECIALIST_USER
-from graph.logprob_analyzer import analyze_logprobs
+from src.adapters.orchestration.doc_cls.state import GraphState
+from src.application.prompts.classifier_prompts import MED_SPECIALIST_SYSTEM, NONMED_SPECIALIST_SYSTEM, SPECIALIST_USER
+from src.domain.services.logprob_analyzer import analyze_logprobs
 from langchain_core.messages import SystemMessage, HumanMessage
 
 log = structlog.get_logger()

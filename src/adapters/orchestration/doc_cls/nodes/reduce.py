@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import time
 from typing import Any
-from graph.state import GraphState
-from schemas.multi_page import MultiPageResult
+from src.adapters.orchestration.doc_cls.state import GraphState
+from src.domain.models.multi_page import MultiPageResult
 
 def reduce_node(state: GraphState) -> dict[str, Any]:
     """

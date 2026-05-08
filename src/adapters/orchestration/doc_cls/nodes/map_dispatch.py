@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from langgraph.types import Send
-from graph.state import GraphState, PageState
+from src.adapters.orchestration.doc_cls.state import GraphState, PageState
 
 def dispatch_pages(state: GraphState) -> list[Send]:
     """

@@ -3,7 +3,7 @@ from __future__ import annotations
 import operator
 from typing import Annotated, Any, TypedDict
 
-from schemas.multi_page import PageClassificationResult, MultiPageResult
+from src.domain.models.multi_page import PageClassificationResult, MultiPageResult
 
 
 def merge_metrics(existing: dict[str, Any] | None, incoming: dict[str, Any] | None) -> dict[str, Any]:
