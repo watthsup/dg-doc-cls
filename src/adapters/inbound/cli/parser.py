@@ -16,7 +16,8 @@ def cli():
 @click.option("--type", "graph_type", default="doc_cls", help="Graph type (default: doc_cls)")
 @click.option("--concurrency", default=3, help="Max concurrent processes")
 @click.option("--verbose", is_flag=True, help="Enable debug logging")
-def process(file, directory, output_dir, graph_type, concurrency, verbose):
+@click.option("--json", "json_output", is_flag=True, help="Print JSON output to console")
+def process(file, directory, output_dir, graph_type, concurrency, verbose, json_output):
     """Process document(s) and classify pages."""
     if not file and not directory:
         raise click.UsageError("Either --file or --dir must be provided.")
@@ -27,7 +28,8 @@ def process(file, directory, output_dir, graph_type, concurrency, verbose):
         output_dir=output_dir,
         graph_type=graph_type,
         max_concurrency=concurrency,
-        verbose=verbose
+        verbose=verbose,
+        json_output=json_output
     )
     if exit_code != 0:
         raise click.ClickException("Process command failed.")

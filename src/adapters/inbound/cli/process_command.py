@@ -26,6 +26,7 @@ def execute_process_command(
     graph_type: str,
     max_concurrency: int,
     verbose: bool,
+    json_output: bool = False,
 ) -> int:
     """Implementation of the 'process' CLI command."""
     config = AppConfig()  # type: ignore[call-arg]
@@ -60,7 +61,7 @@ def execute_process_command(
     out_path.mkdir(parents=True, exist_ok=True)
     
     # 3. Run
-    asyncio.run(_run_pipeline(input_files, config, out_path, graph_type, max_concurrency))
+    asyncio.run(_run_pipeline(input_files, config, out_path, graph_type, max_concurrency, json_output))
     return 0
 
 async def _run_pipeline(
@@ -69,6 +70,7 @@ async def _run_pipeline(
     output_dir: pathlib.Path,
     graph_type: str,
     max_concurrency: int,
+    json_output: bool = False,
 ) -> None:
     processor = DocumentProcessor(config=config, graph_type=graph_type)
     
@@ -131,17 +133,19 @@ async def _run_pipeline(
                                 " -> ".join(p.execution_trail), p.ocr_text
                             ])
                     results_count += 1
-                print(f"  ✅ {result.file_name}: {result.summary}")
+                print(f"  ✅ {result.file_name}: {result.summary}", file=sys.stderr)
+                if json_output:
+                    print(result.model_dump_json(indent=2), file=sys.stdout)
             except Exception as e:
                 error_info = {"file": f_path.name, "error": str(e)}
                 async with write_lock:
                     with open(error_file, "a", encoding="utf-8") as f:
                         f.write(json.dumps(error_info) + "\n")
                     errors_count += 1
-                print(f"  ❌ {f_path.name}: {e}")
+                print(f"  ❌ {f_path.name}: {e}", file=sys.stderr)
 
     tasks = [_process_one(fp) for fp in input_files]
     await asyncio.gather(*tasks)
 
-    print(f"\nProcessing complete. Success: {results_count}, Errors: {errors_count}")
-    print(f"Results saved to {output_dir}")
+    print(f"\nProcessing complete. Success: {results_count}, Errors: {errors_count}", file=sys.stderr)
+    print(f"Results saved to {output_dir}", file=sys.stderr)
