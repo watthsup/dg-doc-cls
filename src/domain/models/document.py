@@ -28,7 +28,6 @@ class OCRResult(BaseModel):
 class ClassificationResult(BaseModel):
     primary_class: PrimaryClass
     subcategory: Subcategory
-    hospital_name: str | None = Field(default=None)
 
 class SignalScores(BaseModel):
     ocr_confidence: float = Field(ge=0.0, le=1.0)
@@ -58,7 +57,6 @@ class DocumentResult(BaseModel):
     document_id: str
     file_name: str
     filename_doc_type: str | None = Field(default=None)
-    hospital_name: str | None = Field(default=None)
     pages: list[PageResult] = Field(default_factory=list)
     processing_metadata: ProcessingMetadata = Field(default_factory=ProcessingMetadata)
 

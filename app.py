@@ -123,9 +123,6 @@ if uploaded_file is not None:
                 st.markdown("### 🏷️ Classification")
                 st.success(f"**{page.root_code}** ➔ **{page.sub_code}**")
 
-                if page.hospital_name:
-                    st.info(f"🏥 **Hospital:** {page.hospital_name}")
-
                 # Logprob Analysis
                 st.markdown("### 🔬 Logprob Analysis")
                 col_root, col_sub = st.columns(2)
@@ -224,9 +221,6 @@ if uploaded_file is not None:
                 primary = llm_output.primary_class.value.upper()
                 sub = llm_output.subcategory.value.upper()
                 st.success(f"**{primary}** ➔ **{sub}**")
-
-                if llm_output.hospital_name:
-                    st.info(f"🏥 **Hospital:** {llm_output.hospital_name}")
 
                 st.metric("OCR Confidence", f"{ocr_page.mean_confidence:.1f}%")
 

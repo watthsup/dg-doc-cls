@@ -29,7 +29,7 @@ logger = structlog.get_logger()
 class LLMClassifier:
     """Document classifier using OpenAI with Pydantic structured output.
 
-    Single call returns both classification and hospital name.
+    Single call returns classification.
     Automatically selects Standard OpenAI or Azure OpenAI based on config.
     """
 
@@ -72,7 +72,7 @@ class LLMClassifier:
         reraise=True,
     )
     async def classify(self, ocr_text: str) -> LLMOutput:
-        """Classify a document and extract hospital name in one LLM call.
+        """Classify a document.
 
         Returns LLMOutput which gets merged with computed signals downstream.
         """
@@ -80,7 +80,6 @@ class LLMClassifier:
             return LLMOutput(
                 primary_class="non_medical",  # type: ignore[arg-type]
                 subcategory="other",  # type: ignore[arg-type]
-                hospital_name=None,
             )
 
         result = await self._chain.ainvoke({"ocr_text": ocr_text})

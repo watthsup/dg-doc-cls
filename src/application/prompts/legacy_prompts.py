@@ -10,7 +10,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 CLASSIFICATION_SYSTEM_PROMPT = """\
 You are a document classification expert. Your task is to classify a document \
-based on its OCR-extracted text and extract relevant metadata.
+based on its OCR-extracted text.
 
 ## Classification Schema
 
@@ -42,11 +42,6 @@ Features unique numbers (e.g., 13 digits), Date of Birth, and Expiration Dates.
 "Bill to", and currency symbols/totals. (Note: A hospital bill with medication costs is still "financial").
 - **other**: Any document that doesn't fit the above categories e.g. General letters, images, or documents not fitting above patterns.
 
-## Hospital Name Extraction
-- If this is a medical document, extract the hospital or clinic name
-- Look for names in the header, letterhead, or logo area
-- Return null if not a medical document or if no hospital name is found
-
 ## Rules
 1. Choose EXACTLY ONE primary_class and EXACTLY ONE subcategory
 2. The subcategory MUST be valid for the chosen primary_class
@@ -60,7 +55,7 @@ only use **other** if the document is cleary not related to healthcare.
 """
 
 CLASSIFICATION_USER_PROMPT = """\
-Classify the following document and extract the hospital name if applicable:
+Classify the following document:
 
 ---
 {ocr_text}

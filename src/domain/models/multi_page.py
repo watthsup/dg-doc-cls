@@ -15,7 +15,6 @@ class PageClassificationResult(BaseModel):
     root_score: float = Field(default=0.0, description="Raw logprob score of winning root token")
     sub_score: float = Field(default=0.0, description="Raw logprob score of winning sub-code token")
     
-    hospital_name: str | None = Field(default=None)
     is_uncertain: bool = Field(default=False)
     execution_trail: list[str] = Field(default_factory=list)
     ocr_text: str = Field(default="", description="OCR text for this page (for debugging)")

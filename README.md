@@ -26,7 +26,8 @@ Root
 ├── MED (Medical)
 │   ├── LAB  — Lab test results (CBC, LFT, Lipid, etc.)
 │   ├── CHK  — Health check / wellness / executive screening
-│   └── OTH  — Medical Other (imaging, OPD notes, certs, etc.) ← fallback
+│   ├── CLI  — Clinical document (OPD/IPD notes, discharge summary, etc.)
+│   └── OTH  — Medical Other (imaging, certificates, etc.) ← fallback
 │
 └── NON (Non-Medical)
     ├── PS  — Passport (international travel document, MRZ)
