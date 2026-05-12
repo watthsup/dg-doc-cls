@@ -48,7 +48,7 @@ def execute_process_command(
         if not d_path.exists():
             print(f"Error: Directory {directory} does not exist", file=sys.stderr)
             return 1
-        input_files = scan_documents(d_path)
+        input_files = [d.file_path for d in scan_documents(d_path)]
     
     if not input_files:
         print("No supported documents found.", file=sys.stderr)

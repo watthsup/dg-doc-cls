@@ -45,16 +45,20 @@ class LLMClassifier:
                 timeout=config.llm_timeout,
             )
         else:
+            global _AZURE_TOKEN_PROVIDER
             from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 
             logger.info("llm_classifier_using_azure", deployment=config.azure_openai_deployment)
-            token_provider = get_bearer_token_provider(
-                DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
-            )
+            
+            if _AZURE_TOKEN_PROVIDER is None:
+                _AZURE_TOKEN_PROVIDER = get_bearer_token_provider(
+                    DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
+                )
+                
             self._llm = AzureChatOpenAI(
                 azure_deployment=config.azure_openai_deployment,
                 azure_endpoint=config.azure_openai_endpoint,
-                azure_ad_token_provider=token_provider,
+                azure_ad_token_provider=_AZURE_TOKEN_PROVIDER,
                 api_version=config.azure_openai_api_version,
                 temperature=config.llm_temperature,
                 timeout=config.llm_timeout,
@@ -91,8 +95,15 @@ class LLMClassifier:
 
         return result
 
+_AZURE_TOKEN_PROVIDER = None
+
 def get_llm(config: AppConfig, logprobs: bool = False):
-    """Factory for standard/Azure LLMs without structured output."""
+    """Factory for standard/Azure LLMs without structured output.
+    
+    Caches the Azure token provider to avoid expensive DefaultAzureCredential initialization.
+    """
+    global _AZURE_TOKEN_PROVIDER
+    
     kwargs = {}
     if logprobs:
         kwargs["logprobs"] = True
@@ -107,14 +118,16 @@ def get_llm(config: AppConfig, logprobs: bool = False):
             **kwargs
         )
     else:
-        from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-        token_provider = get_bearer_token_provider(
-            DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
-        )
+        if _AZURE_TOKEN_PROVIDER is None:
+            from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+            _AZURE_TOKEN_PROVIDER = get_bearer_token_provider(
+                DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
+            )
+            
         return AzureChatOpenAI(
             azure_deployment=config.azure_openai_deployment,
             azure_endpoint=config.azure_openai_endpoint,
-            azure_ad_token_provider=token_provider,
+            azure_ad_token_provider=_AZURE_TOKEN_PROVIDER,
             api_version=config.azure_openai_api_version,
             temperature=config.llm_temperature,
             timeout=config.llm_timeout,
