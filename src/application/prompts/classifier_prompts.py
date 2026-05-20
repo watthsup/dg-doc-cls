@@ -50,17 +50,22 @@ Keywords: CBC, BUN, Creatinine, Lipid Profile, Glucose, mg/dL, mmol/L, x10^3/uL.
 NOT included: waveform studies, signal recordings, or functional diagnostics \
 (e.g., ECG, EKG, EMG, EEG, spirometry graphs, imaging reports).
 
-- **CHK** — Health check / wellness report. Comprehensive physical examination \
-with vitals (Blood Pressure, BMI, Heart Rate), multiple test summaries, \
-and a doctor's overall health assessment. Often titled "Annual Health Checkup" \
-or "Executive Health Screening".
+- **CHK** — Health check / physical examination data. Any page containing \
+extractable vital signs or physical examination findings such as \
+Blood Pressure, BMI, Heart Rate, Weight, Height, or a structured wellness \
+summary. This applies regardless of whether the source document is a \
+dedicated checkup report (e.g., "Annual Health Checkup", "Executive Health \
+Screening") or a clinical encounter record (OPD/IPD) that includes a \
+Physical Examination (PE) section with structured vitals.
 
-- **CLI** — Clinical care document (OPD/IPD). Medical records related to \
-patient treatment encounters, whether outpatient or inpatient. Includes \
-doctor consultation notes, progress notes, admission or discharge summaries, \
-diagnosis lists, prescriptions, treatment plans, operative notes, or hospital \
-course documentation. Often contains visit or admission dates, assessments, \
-plans, and medications.
+- **CLI** — Clinical narrative / notes. Text-heavy medical records focused \
+on a clinician's written assessment rather than structured measurements. \
+Includes: doctor consultation notes, progress notes, admission or discharge \
+summaries, diagnosis lists, prescriptions, treatment plans, operative notes, \
+or hospital course documentation. Typically contains visit or admission \
+dates, narrative assessments, plans, and medication orders. \
+NOT included: pages whose primary content is a table of vital signs or \
+PE measurements — classify those as CHK instead.
 
 - **OTH** — Use this code ONLY when you are not confident the document is \
 LAB, CHK, or CLI, or when the document does not clearly match any category. \
